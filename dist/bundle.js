@@ -535,6 +535,171 @@
 
   angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService);
 
-  angular$1.module('angularNavData', [moduleName]);
+  var registerCallback$1 = function registerCallback(replicationFrom, callback) {
+    replicationFrom.then(callback);
+  };
+
+  var ProductsService = function () {
+    function ProductsService($injector, pouchDB, angularNavDataUtilsService) {
+      classCallCheck(this, ProductsService);
+
+      var dataModuleRemoteDB = void 0;
+
+      try {
+        dataModuleRemoteDB = $injector.get('dataModuleRemoteDB');
+      } catch (e) {
+        throw new Error('dataModuleRemoteDB should be provided in the data module configuration');
+      }
+
+      this.pouchDB = pouchDB;
+      this.angularNavDataUtilsService = angularNavDataUtilsService;
+
+      this.remoteDB = this.pouchDB(dataModuleRemoteDB);
+      this.replicationFrom;
+      this.localDB;
+      this.registeredOnReplicationCompleteCallbackIds = [];
+      this.callbacksPendingRegistration = [];
+    }
+
+    createClass(ProductsService, [{
+      key: 'startReplication',
+      value: function startReplication(zone, state) {
+        var options = {
+          filter: 'products/products'
+        };
+
+        this.localDB = this.pouchDB('navIntProductsDB');
+        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+        this.callbacksPendingRegistration.forEach(registerCallback$1.bind(null, this.replicationFrom));
+      }
+    }, {
+      key: 'callOnReplicationComplete',
+      value: function callOnReplicationComplete(callbackId, callback) {
+        if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
+          this.registeredOnReplicationCompleteCallbackIds.push(callbackId);
+          if (this.replicationFrom) {
+            registerCallback$1(this.replicationFrom, callback);
+          } else {
+            // in case the registration happens before starting the replication
+            this.callbacksPendingRegistration.push(callback);
+          }
+        }
+      }
+    }, {
+      key: 'allDocs',
+      value: function allDocs(options) {
+        var db = this.localDB || this.remoteDB;
+        return this.angularNavDataUtilsService.allDocs(db, options);
+      }
+    }]);
+    return ProductsService;
+  }();
+
+  var ProductListService = function () {
+    function ProductListService($q, smartId, productsService) {
+      classCallCheck(this, ProductListService);
+
+      this.cachedProducts = [];
+      this.cachedDryProducts = [];
+      this.cachedFrozenProducts = [];
+      this.relevant;
+
+      this.$q = $q;
+      this.smartId = smartId;
+      this.productsService = productsService;
+
+      // For the state dashboard:
+      // products are replicated locally
+      this.productsService.callOnReplicationComplete('products-list-service', this.all);
+      this.all();
+    }
+
+    createClass(ProductListService, [{
+      key: 'queryAndUpdateCache',
+      value: function queryAndUpdateCache() {
+        var _this = this;
+
+        var addId = function addId(product) {
+          product.id = _this.smartId.parse(product._id).product;
+          return product;
+        };
+
+        var generateDocId = function generateDocId(productId) {
+          return _this.smartId.idify({ product: productId }, 'product');
+        };
+
+        var query = function query() {
+          var options = {
+            'include_docs': true,
+            ascending: true
+          };
+
+          if (_this.relevant) {
+            options.keys = _this.relevant.map(generateDocId);
+          }
+
+          return _this.productsService.allDocs(options);
+        };
+
+        var isDry = function isDry(product) {
+          return product.storageType === 'dry';
+        };
+
+        var isFrozen = function isFrozen(product) {
+          return product.storageType === 'frozen';
+        };
+
+        var updateCache = function updateCache(docs) {
+          _this.cachedProducts = docs.map(addId);
+          _this.cachedDryProducts = _this.cachedProducts.filter(isDry);
+          _this.cachedFrozenProducts = _this.cachedProducts.fiter(isFrozen);
+        };
+
+        return query().then(updateCache);
+      }
+    }, {
+      key: 'all',
+      value: function all() {
+        if (!this.cachedProducts.length > 0) {
+          return this.queryAndUpdateCache().then(function () {
+            return this.cachedProducts;
+          });
+        }
+        return this.$q.when(this.cachedProducts);
+      }
+    }, {
+      key: 'dry',
+      value: function dry() {
+        if (!this.cachedDryProducts.length > 0) {
+          return this.queryAndUpdateCache().then(function () {
+            return this.cachedDryProducts;
+          });
+        }
+        return this.$q.when(this.cachedDryProducts);
+      }
+    }, {
+      key: 'frozen',
+      value: function frozen() {
+        if (!this.cachedFrozenProducts.length > 0) {
+          return this.queryAndUpdateCache().then(function () {
+            return this.cachedFrozenProducts;
+          });
+        }
+        return this.$q.when(this.cachedFrozenProducts);
+      }
+    }, {
+      key: 'setRelevant',
+      value: function setRelevant(relevant) {
+        this.relevant = relevant;
+      }
+    }]);
+    return ProductListService;
+  }();
+
+  var moduleName$2 = 'angularNavData.products';
+
+  angular$1.module(moduleName$2, [moduleName$1, 'ngSmartId', 'pouchdb']).service('productsService', ProductsService).service('productsListService', ProductListService);
+
+  angular$1.module('angularNavData', [moduleName, moduleName$2]);
 
 }(angular));
