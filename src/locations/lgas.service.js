@@ -13,7 +13,6 @@ export default class LgasService {
     // locations are replicated and the zone and state are set by default
     // with `setState`
     this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this))
-    this.byState()
   }
 
   queryAndUpdateCache (zone, state) {

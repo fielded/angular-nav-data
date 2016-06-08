@@ -349,7 +349,6 @@
       // locations are replicated and the zone and state are set by default
       // with `setState`
       this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this));
-      this.byState();
     }
 
     createClass(LgasService, [{
@@ -433,7 +432,6 @@
       // For the state dashboard:
       // locations are replicated and the zone and state are set by default
       this.locationsService.callOnReplicationComplete('states-service', this.byZone.bind(this));
-      this.byZone();
     }
 
     createClass(StatesService, [{
@@ -611,7 +609,6 @@
       // For the state dashboard:
       // products are replicated locally
       this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this));
-      this.all();
     }
 
     createClass(ProductListService, [{

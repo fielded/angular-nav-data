@@ -12,7 +12,6 @@ export default class ProductListService {
     // For the state dashboard:
     // products are replicated locally
     this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this))
-    this.all()
   }
 
   queryAndUpdateCache () {
