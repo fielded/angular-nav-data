@@ -3,35 +3,6 @@
 
   angular$1 = 'default' in angular$1 ? angular$1['default'] : angular$1;
 
-  var babelHelpers = {};
-
-  babelHelpers.classCallCheck = function (instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-      throw new TypeError("Cannot call a class as a function");
-    }
-  };
-
-  babelHelpers.createClass = function () {
-    function defineProperties(target, props) {
-      for (var i = 0; i < props.length; i++) {
-        var descriptor = props[i];
-        descriptor.enumerable = descriptor.enumerable || false;
-        descriptor.configurable = true;
-        if ("value" in descriptor) descriptor.writable = true;
-        Object.defineProperty(target, descriptor.key, descriptor);
-      }
-    }
-
-    return function (Constructor, protoProps, staticProps) {
-      if (protoProps) defineProperties(Constructor.prototype, protoProps);
-      if (staticProps) defineProperties(Constructor, staticProps);
-      return Constructor;
-    };
-  }();
-
-  babelHelpers;
-
-
   function __commonjs(fn, module) { return module = { exports: {} }, fn(module, module.exports), module.exports; }
 
   (function (angular) {
@@ -273,13 +244,37 @@
   })(window, window.angular);
   });
 
+  var classCallCheck = function (instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  };
+
+  var createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+    }
+
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
+
   var registerCallback = function registerCallback(replicationFrom, callback) {
     replicationFrom.then(callback);
   };
 
   var LocationsService = function () {
     function LocationsService($injector, pouchDB, angularNavDataUtilsService) {
-      babelHelpers.classCallCheck(this, LocationsService);
+      classCallCheck(this, LocationsService);
 
       var dataModuleRemoteDB = void 0;
 
@@ -299,7 +294,7 @@
       this.callbacksPendingRegistration = [];
     }
 
-    babelHelpers.createClass(LocationsService, [{
+    createClass(LocationsService, [{
       key: 'startReplication',
       value: function startReplication(zone, state) {
         var options = {
@@ -339,26 +334,25 @@
 
   var LgasService = function () {
     function LgasService($q, smartId, locationsService) {
-      babelHelpers.classCallCheck(this, LgasService);
+      classCallCheck(this, LgasService);
 
-      var self = this;
-      self.cachedLgasByState = {};
-      self.cachedLgaIdsByState = {};
-      self.defaultZone;
-      self.defaultState;
+      this.cachedLgasByState = {};
+      this.cachedLgaIdsByState = {};
+      this.defaultZone;
+      this.defaultState;
 
-      self.$q = $q;
-      self.smartId = smartId;
-      self.locationsService = locationsService;
+      this.$q = $q;
+      this.smartId = smartId;
+      this.locationsService = locationsService;
 
       // For the state dashboard:
       // locations are replicated and the zone and state are set by default
       // with `setState`
-      self.locationsService.callOnReplicationComplete('lgas-service', self.byState);
-      self.byState();
+      this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this));
+      this.byState();
     }
 
-    babelHelpers.createClass(LgasService, [{
+    createClass(LgasService, [{
       key: 'queryAndUpdateCache',
       value: function queryAndUpdateCache(zone, state) {
         var _this = this;
@@ -393,28 +387,26 @@
     }, {
       key: 'byState',
       value: function byState(zone, state) {
-        var self = this;
-        zone = zone || self.defaultZone;
-        state = state || self.defaultState;
-        if (!self.cachedLgasByState[state]) {
-          return self.queryAndUpdateCache(zone, state).then(function () {
-            return self.cachedLgasByState[state];
+        zone = zone || this.defaultZone;
+        state = state || this.defaultState;
+        if (!this.cachedLgasByState[state]) {
+          return this.queryAndUpdateCache(zone, state).then(function () {
+            return this.cachedLgasByState[state];
           });
         }
-        return self.$q.when(self.cachedLgasByState[state]);
+        return this.$q.when(this.cachedLgasByState[state]);
       }
     }, {
       key: 'idsByState',
       value: function idsByState(zone, state) {
-        var self = this;
-        zone = zone || self.defaultZone;
-        state = state || self.defaultState;
-        if (!self.cachedLgasByState[state]) {
-          return self.queryAndUpdateCache(zone, state).then(function () {
-            return self.cachedLgaIdsByState[state];
+        zone = zone || this.defaultZone;
+        state = state || this.defaultState;
+        if (!this.cachedLgasByState[state]) {
+          return this.queryAndUpdateCache(zone, state).then(function () {
+            return this.cachedLgaIdsByState[state];
           });
         }
-        return self.$q.when(self.cachedLgaIdsByState[state]);
+        return this.$q.when(this.cachedLgaIdsByState[state]);
       }
     }, {
       key: 'setState',
@@ -428,24 +420,23 @@
 
   var StatesService = function () {
     function StatesService($q, smartId, locationsService) {
-      babelHelpers.classCallCheck(this, StatesService);
+      classCallCheck(this, StatesService);
 
-      var self = this;
-      self.cachedStatesByZone = {};
-      self.cachedStateIdsByZone = {};
-      self.defaultZone;
+      this.cachedStatesByZone = {};
+      this.cachedStateIdsByZone = {};
+      this.defaultZone;
 
-      self.$q = $q;
-      self.smartId = smartId;
-      self.locationsService = locationsService;
+      this.$q = $q;
+      this.smartId = smartId;
+      this.locationsService = locationsService;
 
       // For the state dashboard:
       // locations are replicated and the zone and state are set by default
-      self.locationsService.callOnReplicationComplete('states-service', self.byZone);
-      self.byZone();
+      this.locationsService.callOnReplicationComplete('states-service', this.byZone.bind(this));
+      this.byZone();
     }
 
-    babelHelpers.createClass(StatesService, [{
+    createClass(StatesService, [{
       key: 'queryAndUpdateCache',
       value: function queryAndUpdateCache(zone) {
         var _this = this;
@@ -486,26 +477,24 @@
     }, {
       key: 'byZone',
       value: function byZone(zone) {
-        var self = this;
-        zone = zone || self.defaultZone;
-        if (!self.cachedStatesByZone[zone]) {
-          return self.queryAndUpdateCache(zone).then(function () {
-            return self.cachedStatesByZone[zone];
+        zone = zone || this.defaultZone;
+        if (!this.cachedStatesByZone[zone]) {
+          return this.queryAndUpdateCache(zone).then(function () {
+            return this.cachedStatesByZone[zone];
           });
         }
-        return self.$q.when(self.cachedStatesByZone[zone]);
+        return this.$q.when(this.cachedStatesByZone[zone]);
       }
     }, {
       key: 'idsByZone',
       value: function idsByZone(zone) {
-        var self = this;
-        zone = zone || self.defaultZone;
-        if (!self.cachedStatesByZone[zone]) {
-          return self.queryAndUpdateCache(zone).then(function () {
-            return self.cachedStateIdsByZone[zone];
+        zone = zone || this.defaultZone;
+        if (!this.cachedStatesByZone[zone]) {
+          return this.queryAndUpdateCache(zone).then(function () {
+            return this.cachedStateIdsByZone[zone];
           });
         }
-        return self.$q.when(self.cachedStateIdsByZone[zone]);
+        return this.$q.when(this.cachedStateIdsByZone[zone]);
       }
     }, {
       key: 'setZone',
@@ -526,10 +515,10 @@
 
   var UtilsService = function () {
     function UtilsService() {
-      babelHelpers.classCallCheck(this, UtilsService);
+      classCallCheck(this, UtilsService);
     }
 
-    babelHelpers.createClass(UtilsService, [{
+    createClass(UtilsService, [{
       key: "allDocs",
       value: function allDocs(db, options) {
         return db.allDocs(options).then(parseAllDocsResponse);

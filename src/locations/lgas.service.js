@@ -12,7 +12,7 @@ export default class LgasService {
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
     // with `setState`
-    this.locationsService.callOnReplicationComplete('lgas-service', this.byState)
+    this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this))
     this.byState()
   }
 
