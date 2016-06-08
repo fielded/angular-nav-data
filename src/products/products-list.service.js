@@ -49,7 +49,7 @@ export default class ProductListService {
     const updateCache = (docs) => {
       this.cachedProducts = docs.map(addId)
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
-      this.cachedFrozenProducts = this.cachedProducts.fiter(isFrozen)
+      this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
     }
 
     return query()

@@ -652,7 +652,7 @@
         var updateCache = function updateCache(docs) {
           _this.cachedProducts = docs.map(addId);
           _this.cachedDryProducts = _this.cachedProducts.filter(isDry);
-          _this.cachedFrozenProducts = _this.cachedProducts.fiter(isFrozen);
+          _this.cachedFrozenProducts = _this.cachedProducts.filter(isFrozen);
         };
 
         return query().then(updateCache);
