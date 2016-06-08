@@ -610,7 +610,7 @@
 
       // For the state dashboard:
       // products are replicated locally
-      this.productsService.callOnReplicationComplete('products-list-service', this.all);
+      this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this));
       this.all();
     }
 
@@ -666,7 +666,7 @@
         if (!this.cachedProducts.length > 0) {
           return this.queryAndUpdateCache().then(function () {
             return this.cachedProducts;
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedProducts);
       }
@@ -676,7 +676,7 @@
         if (!this.cachedDryProducts.length > 0) {
           return this.queryAndUpdateCache().then(function () {
             return this.cachedDryProducts;
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedDryProducts);
       }
@@ -686,7 +686,7 @@
         if (!this.cachedFrozenProducts.length > 0) {
           return this.queryAndUpdateCache().then(function () {
             return this.cachedFrozenProducts;
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedFrozenProducts);
       }
