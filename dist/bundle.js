@@ -392,7 +392,7 @@
         if (!this.cachedLgasByState[state]) {
           return this.queryAndUpdateCache(zone, state).then(function () {
             return this.cachedLgasByState[state];
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedLgasByState[state]);
       }
@@ -404,7 +404,7 @@
         if (!this.cachedLgasByState[state]) {
           return this.queryAndUpdateCache(zone, state).then(function () {
             return this.cachedLgaIdsByState[state];
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedLgaIdsByState[state]);
       }
@@ -481,7 +481,7 @@
         if (!this.cachedStatesByZone[zone]) {
           return this.queryAndUpdateCache(zone).then(function () {
             return this.cachedStatesByZone[zone];
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedStatesByZone[zone]);
       }
@@ -492,7 +492,7 @@
         if (!this.cachedStatesByZone[zone]) {
           return this.queryAndUpdateCache(zone).then(function () {
             return this.cachedStateIdsByZone[zone];
-          });
+          }.bind(this));
         }
         return this.$q.when(this.cachedStateIdsByZone[zone]);
       }

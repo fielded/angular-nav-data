@@ -51,7 +51,7 @@ export default class LgasService {
     state = state || this.defaultState
     if (!this.cachedLgasByState[state]) {
       return this.queryAndUpdateCache(zone, state)
-              .then(function () { return this.cachedLgasByState[state] })
+              .then(function () { return this.cachedLgasByState[state] }.bind(this))
     }
     return this.$q.when(this.cachedLgasByState[state])
   }
@@ -61,7 +61,7 @@ export default class LgasService {
     state = state || this.defaultState
     if (!this.cachedLgasByState[state]) {
       return this.queryAndUpdateCache(zone, state)
-              .then(function () { return this.cachedLgaIdsByState[state] })
+              .then(function () { return this.cachedLgaIdsByState[state] }.bind(this))
     }
     return this.$q.when(this.cachedLgaIdsByState[state])
   }

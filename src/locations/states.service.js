@@ -52,7 +52,7 @@ export default class StatesService {
     zone = zone || this.defaultZone
     if (!this.cachedStatesByZone[zone]) {
       return this.queryAndUpdateCache(zone)
-              .then(function () { return this.cachedStatesByZone[zone] })
+              .then(function () { return this.cachedStatesByZone[zone] }.bind(this))
     }
     return this.$q.when(this.cachedStatesByZone[zone])
   }
@@ -61,7 +61,7 @@ export default class StatesService {
     zone = zone || this.defaultZone
     if (!this.cachedStatesByZone[zone]) {
       return this.queryAndUpdateCache(zone)
-              .then(function () { return this.cachedStateIdsByZone[zone] })
+              .then(function () { return this.cachedStateIdsByZone[zone] }.bind(this))
     }
     return this.$q.when(this.cachedStateIdsByZone[zone])
   }
