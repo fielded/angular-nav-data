@@ -630,12 +630,15 @@
 
         var query = function query() {
           var options = {
-            'include_docs': true,
-            ascending: true
+            'include_docs': true
           };
 
           if (_this.relevant) {
             options.keys = _this.relevant.map(generateDocId);
+          } else {
+            options.ascending = true;
+            options.startkey = 'product:';
+            options.endkey = 'product:' + '￿';
           }
 
           return _this.productsService.allDocs(options);

@@ -27,12 +27,15 @@ export default class ProductListService {
 
     const query = () => {
       var options = {
-        'include_docs': true,
-        ascending: true
+        'include_docs': true
       }
 
       if (this.relevant) {
         options.keys = this.relevant.map(generateDocId)
+      } else {
+        options.ascending = true
+        options.startkey = 'product:'
+        options.endkey = 'product:' + '\uffff'
       }
 
       return this.productsService.allDocs(options)
