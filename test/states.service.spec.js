@@ -25,12 +25,6 @@ describe('statesService', function () {
     })
   })
 
-  it('should expose a setZone function', function () {
-    expect(statesService.setZone).toBeDefined()
-    statesService.setZone('nc')
-    expect(statesService.defaultZone).toBe('nc')
-  })
-
   it('should expose a byZone function', function () {
     expect(statesService.byZone).toBeDefined()
   })
