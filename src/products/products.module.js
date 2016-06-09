@@ -1,5 +1,4 @@
 import angular from 'angular'
-import 'ng-smart-id'
 import 'angular-pouchdb/dist/angular-pouchdb'
 
 import ProductsService from './products.service'
@@ -11,7 +10,6 @@ var moduleName = 'angularNavData.products'
 angular
   .module(moduleName, [
     utilsModuleName,
-    'ngSmartId',
     'pouchdb'
   ])
   .service('productsService', ProductsService)

@@ -1,12 +1,11 @@
 export default class ProductListService {
-  constructor ($q, smartId, productsService) {
+  constructor ($q, productsService) {
     this.cachedProducts = []
     this.cachedDryProducts = []
     this.cachedFrozenProducts = []
     this.relevant
 
     this.$q = $q
-    this.smartId = smartId
     this.productsService = productsService
 
     // For the state dashboard:
@@ -15,22 +14,13 @@ export default class ProductListService {
   }
 
   queryAndUpdateCache () {
-    const addId = (product) => {
-      product.id = this.smartId.parse(product._id).product
-      return product
-    }
-
-    const generateDocId = (productId) => {
-      return this.smartId.idify({ product: productId }, 'product')
-    }
-
     const query = () => {
       var options = {
         'include_docs': true
       }
 
       if (this.relevant) {
-        options.keys = this.relevant.map(generateDocId)
+        options.keys = this.relevant
       } else {
         options.ascending = true
         options.startkey = 'product:'
@@ -49,7 +39,7 @@ export default class ProductListService {
     }
 
     const updateCache = (docs) => {
-      this.cachedProducts = docs.map(addId)
+      this.cachedProducts = docs
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
       this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
     }

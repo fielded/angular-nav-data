@@ -16,7 +16,7 @@ describe('productsListService', function () {
 
   describe('setRelevant', function () {
     it('should set the relevant products for the location', function () {
-      var relevant = ['tt', 'mv', 'bcg']
+      var relevant = ['product:tt', 'product:mv', 'product:bcg']
       productsListService.setRelevant(relevant)
       expect(productsListService.relevant).toEqual(relevant)
     })

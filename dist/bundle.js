@@ -594,7 +594,7 @@
   }();
 
   var ProductListService = function () {
-    function ProductListService($q, smartId, productsService) {
+    function ProductListService($q, productsService) {
       classCallCheck(this, ProductListService);
 
       this.cachedProducts = [];
@@ -603,7 +603,6 @@
       this.relevant;
 
       this.$q = $q;
-      this.smartId = smartId;
       this.productsService = productsService;
 
       // For the state dashboard:
@@ -616,22 +615,13 @@
       value: function queryAndUpdateCache() {
         var _this = this;
 
-        var addId = function addId(product) {
-          product.id = _this.smartId.parse(product._id).product;
-          return product;
-        };
-
-        var generateDocId = function generateDocId(productId) {
-          return _this.smartId.idify({ product: productId }, 'product');
-        };
-
         var query = function query() {
           var options = {
             'include_docs': true
           };
 
           if (_this.relevant) {
-            options.keys = _this.relevant.map(generateDocId);
+            options.keys = _this.relevant;
           } else {
             options.ascending = true;
             options.startkey = 'product:';
@@ -650,7 +640,7 @@
         };
 
         var updateCache = function updateCache(docs) {
-          _this.cachedProducts = docs.map(addId);
+          _this.cachedProducts = docs;
           _this.cachedDryProducts = _this.cachedProducts.filter(isDry);
           _this.cachedFrozenProducts = _this.cachedProducts.filter(isFrozen);
         };
@@ -698,7 +688,7 @@
 
   var moduleName$2 = 'angularNavData.products';
 
-  angular$1.module(moduleName$2, [moduleName$1, 'ngSmartId', 'pouchdb']).service('productsService', ProductsService).service('productsListService', ProductListService);
+  angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productsListService', ProductListService);
 
   angular$1.module('angularNavData', [moduleName, moduleName$2]);
 
