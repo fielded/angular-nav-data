@@ -639,8 +639,12 @@
           return product.storageType === 'frozen';
         };
 
+        var isDefined = function isDefined(doc) {
+          return typeof doc !== 'undefined';
+        };
+
         var updateCache = function updateCache(docs) {
-          _this.cachedProducts = docs;
+          _this.cachedProducts = docs.filter(isDefined);
           _this.cachedDryProducts = _this.cachedProducts.filter(isDry);
           _this.cachedFrozenProducts = _this.cachedProducts.filter(isFrozen);
         };

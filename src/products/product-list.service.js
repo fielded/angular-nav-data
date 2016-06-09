@@ -38,8 +38,12 @@ export default class ProductListService {
       return product.storageType === 'frozen'
     }
 
+    const isDefined = (doc) => {
+      return typeof doc !== 'undefined'
+    }
+
     const updateCache = (docs) => {
-      this.cachedProducts = docs
+      this.cachedProducts = docs.filter(isDefined)
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
       this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
     }
