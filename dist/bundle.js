@@ -688,7 +688,7 @@
 
   var moduleName$2 = 'angularNavData.products';
 
-  angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productsListService', ProductListService);
+  angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productListService', ProductListService);
 
   angular$1.module('angularNavData', [moduleName, moduleName$2]);
 
