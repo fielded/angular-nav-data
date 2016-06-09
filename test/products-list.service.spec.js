@@ -1,7 +1,7 @@
 'use strict'
 
-describe('productsListService', function () {
-  var productsListService
+describe('productListService', function () {
+  var productListService
   var testMod // eslint-disable-line
 
   beforeEach(function () {
@@ -10,27 +10,27 @@ describe('productsListService', function () {
 
   beforeEach(module('testMod'))
 
-  beforeEach(inject(function (_$rootScope_, _productsListService_) {
-    productsListService = _productsListService_
+  beforeEach(inject(function (_$rootScope_, _productListService_) {
+    productListService = _productListService_
   }))
 
   describe('setRelevant', function () {
     it('should set the relevant products for the location', function () {
-      var relevant = ['tt', 'mv', 'bcg']
-      productsListService.setRelevant(relevant)
-      expect(productsListService.relevant).toEqual(relevant)
+      var relevant = ['product:tt', 'product:mv', 'product:bcg']
+      productListService.setRelevant(relevant)
+      expect(productListService.relevant).toEqual(relevant)
     })
   })
 
   it('should expose an all function that returns all products', function () {
-    expect(productsListService.all).toBeDefined()
+    expect(productListService.all).toBeDefined()
   })
 
   it('should expose a dry function that returns only dry products', function () {
-    expect(productsListService.dry).toBeDefined()
+    expect(productListService.dry).toBeDefined()
   })
 
   it('should expose a frozen function that returns only frozen products', function () {
-    expect(productsListService.frozen).toBeDefined()
+    expect(productListService.frozen).toBeDefined()
   })
 })
