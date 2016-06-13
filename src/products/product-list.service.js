@@ -1,4 +1,4 @@
-export default class ProductListService {
+class ProductListService {
   constructor ($q, productsService) {
     this.cachedProducts = []
     this.cachedDryProducts = []
@@ -80,3 +80,7 @@ export default class ProductListService {
     this.relevant = relevant
   }
 }
+
+ProductListService.$inject = ['$q', 'productsService']
+
+export default ProductListService

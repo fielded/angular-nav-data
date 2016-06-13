@@ -2,7 +2,7 @@ const registerCallback = (replicationFrom, callback) => {
   replicationFrom.then(callback)
 }
 
-export default class LocationsService {
+class LocationsService {
   constructor ($injector, pouchDB, angularNavDataUtilsService) {
     let dataModuleRemoteDB
 
@@ -52,3 +52,7 @@ export default class LocationsService {
     return this.angularNavDataUtilsService.allDocs(db, options)
   }
 }
+
+LocationsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService']
+
+export default LocationsService

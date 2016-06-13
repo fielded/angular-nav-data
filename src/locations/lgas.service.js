@@ -1,4 +1,4 @@
-export default class LgasService {
+class LgasService {
   constructor ($q, smartId, locationsService) {
     this.cachedLgasByState = {}
     this.cachedLgaIdsByState = {}
@@ -70,3 +70,7 @@ export default class LgasService {
     this.defaultState = state
   }
 }
+
+LgasService.$inject = ['$q', 'smartId', 'locationsService']
+
+export default LgasService

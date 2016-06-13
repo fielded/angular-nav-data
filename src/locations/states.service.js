@@ -1,4 +1,4 @@
-export default class StatesService {
+class StatesService {
   constructor ($q, smartId, locationsService) {
     this.cachedStatesByZone = {}
     this.cachedStateIdsByZone = {}
@@ -69,3 +69,7 @@ export default class StatesService {
     this.defaultZone = zone
   }
 }
+
+StatesService.$inject = ['$q', 'smartId', 'locationsService']
+
+export default StatesService
