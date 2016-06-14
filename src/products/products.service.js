@@ -29,7 +29,11 @@ class ProductsService {
 
     this.localDB = this.pouchDB('navIntProductsDB')
     this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
-    this.callbacksPendingRegistration.forEach(registerCallback.bind(null, this.replicationFrom))
+
+    while (this.callbacksPendingRegistration.length) {
+      let callback = this.callbacksPendingRegistration.shift()
+      registerCallback(this.replicationFrom, callback)
+    }
   }
 
   callOnReplicationComplete (callbackId, callback) {
