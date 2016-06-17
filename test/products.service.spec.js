@@ -1,7 +1,7 @@
 'use strict'
 
-describe('locationsService', function () {
-  var locationsService
+describe('productsService', function () {
+  var productsService
   var testMod // eslint-disable-line
 
   beforeEach(function () {
@@ -10,27 +10,27 @@ describe('locationsService', function () {
 
   beforeEach(module('testMod'))
 
-  beforeEach(inject(function (_locationsService_) {
-    locationsService = _locationsService_
+  beforeEach(inject(function (_productsService_) {
+    productsService = _productsService_
   }))
 
   it('should be defined', function () {
-    expect(locationsService).toBeDefined()
+    expect(productsService).toBeDefined()
   })
 
   it('should expose a startReplication function', function () {
-    expect(locationsService.startReplication).toBeDefined()
+    expect(productsService.startReplication).toBeDefined()
   })
 
   it('should expose a registerOnReplicationCompleteCallback function', function () {
-    expect(locationsService.registerOnReplicationCompleteCallback).toBeDefined()
+    expect(productsService.registerOnReplicationCompleteCallback).toBeDefined()
   })
 
   it('should expose a unregisterOnReplicationCompleteCallback function', function () {
-    expect(locationsService.unregisterOnReplicationCompleteCallback).toBeDefined()
+    expect(productsService.unregisterOnReplicationCompleteCallback).toBeDefined()
   })
 
   it('should expose an allDocs function', function () {
-    expect(locationsService.allDocs).toBeDefined()
+    expect(productsService.allDocs).toBeDefined()
   })
 })
