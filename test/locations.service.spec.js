@@ -22,8 +22,8 @@ describe('locationsService', function () {
     expect(locationsService.startReplication).toBeDefined()
   })
 
-  it('should expose a callOnReplicationComplete function', function () {
-    expect(locationsService.callOnReplicationComplete).toBeDefined()
+  it('should expose a registerOnReplicationCompleteCallback function', function () {
+    expect(locationsService.registerOnReplicationCompleteCallback).toBeDefined()
   })
 
   it('should expose an allDocs function', function () {

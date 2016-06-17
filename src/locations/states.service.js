@@ -10,7 +10,7 @@ class StatesService {
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
-    this.locationsService.callOnReplicationComplete('states-service', this.byZone.bind(this))
+    this.locationsService.registerOnReplicationCompleteCallback('states-service', this.byZone.bind(this))
   }
 
   queryAndUpdateCache (zone) {

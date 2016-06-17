@@ -40,7 +40,7 @@ class LocationsService {
     }
   }
 
-  callOnReplicationComplete (callbackId, callback) {
+  registerOnReplicationCompleteCallback (callbackId, callback) {
     if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
       this.registeredOnReplicationCompleteCallbackIds.push(callbackId)
       if (this.replicationFrom) {

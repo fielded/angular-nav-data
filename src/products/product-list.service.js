@@ -10,7 +10,7 @@ class ProductListService {
 
     // For the state dashboard:
     // products are replicated locally
-    this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this))
+    this.productsService.registerOnReplicationCompleteCallback('products-list-service', this.all.bind(this))
   }
 
   queryAndUpdateCache () {
