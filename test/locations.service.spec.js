@@ -26,6 +26,10 @@ describe('locationsService', function () {
     expect(locationsService.registerOnReplicationCompleteCallback).toBeDefined()
   })
 
+  it('should expose a unregisterOnReplicationCompleteCallback function', function () {
+    expect(locationsService.unregisterOnReplicationCompleteCallback).toBeDefined()
+  })
+
   it('should expose an allDocs function', function () {
     expect(locationsService.allDocs).toBeDefined()
   })
