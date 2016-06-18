@@ -24,7 +24,7 @@ class ProductsService {
 
   startReplication (zone, state) {
     var options = {
-      filter: 'products/products'
+      filter: 'products/all'
     }
 
     this.localDB = this.pouchDB('navIntProductsDB')
