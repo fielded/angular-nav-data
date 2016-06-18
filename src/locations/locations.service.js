@@ -24,7 +24,7 @@ class LocationsService {
 
   startReplication (zone, state) {
     var options = {
-      filter: 'locationsByState/locationsByState',
+      filter: 'locations/by-state',
       query_params: {
         zone: zone,
         state: state
