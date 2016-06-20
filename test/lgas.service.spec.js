@@ -1,6 +1,7 @@
 'use strict'
 
 describe('lgasService', function () {
+  var $rootScope
   var lgasService
   var testMod // eslint-disable-line
 
@@ -10,7 +11,8 @@ describe('lgasService', function () {
 
   beforeEach(module('testMod'))
 
-  beforeEach(inject(function (_lgasService_) {
+  beforeEach(inject(function (_$rootScope_, _lgasService_) {
+    $rootScope = _$rootScope_
     lgasService = _lgasService_
   }))
 
@@ -32,5 +34,20 @@ describe('lgasService', function () {
 
   it('should expose an idsByState function', function () {
     expect(lgasService.idsByState).toBeDefined()
+  })
+
+  it('should expose a get function', function () {
+    expect(lgasService.get).toBeDefined()
+  })
+
+  xit('should be able to return a single lga with `get`', function (done) {
+    var id = 'zone:nc:state:kogi:lga:adavi'
+    lgasService.cachedLgasByState['kogi'] = [{ _id: id }, {_id: 'b'}]
+    lgasService.get(id)
+      .then(function (lga) {
+        expect(lga).toEqual({ _id: id })
+      })
+    $rootScope.$digest()
+    done()
   })
 })
