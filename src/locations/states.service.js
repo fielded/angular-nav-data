@@ -68,6 +68,22 @@ class StatesService {
   setZone (zone) {
     this.defaultZone = zone
   }
+
+  get (stateId) {
+    // Why is this not working?
+    // const findState = (states) => states.find(state => (state._id === stateId))
+
+    const findState = (states) => {
+      for (const state of states) {
+        if (state._id === stateId) {
+          return state
+        }
+      }
+    }
+
+    const zone = this.smartId.parse(stateId).zone
+    return this.byZone(zone).then(findState)
+  }
 }
 
 StatesService.$inject = ['$q', 'smartId', 'locationsService']

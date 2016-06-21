@@ -69,6 +69,23 @@ class LgasService {
     this.defaultZone = zone
     this.defaultState = state
   }
+
+  get (lgaId) {
+    // Why is this not working?
+    // const findLga = (lgas) => lgas.find(lga => (lga._id === lgaId))
+
+    const findLga = (lgas) => {
+      for (const lga of lgas) {
+        if (lga._id === lgaId) {
+          return lga
+        }
+      }
+    }
+
+    const state = this.smartId.parse(lgaId).state
+    const zone = this.smartId.parse(lgaId).zone
+    return this.byState(zone, state).then(findLga)
+  }
 }
 
 LgasService.$inject = ['$q', 'smartId', 'locationsService']

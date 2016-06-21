@@ -1,6 +1,7 @@
 'use strict'
 
 describe('statesService', function () {
+  var $rootScope
   var statesService
   var testMod // eslint-disable-line
 
@@ -10,7 +11,8 @@ describe('statesService', function () {
 
   beforeEach(module('testMod'))
 
-  beforeEach(inject(function (_statesService_) {
+  beforeEach(inject(function (_$rootScope_, _statesService_) {
+    $rootScope = _$rootScope_
     statesService = _statesService_
   }))
 
@@ -31,5 +33,20 @@ describe('statesService', function () {
 
   it('should expose an idsByZone function', function () {
     expect(statesService.idsByZone).toBeDefined()
+  })
+
+  it('should expose a get function', function () {
+    expect(statesService.get).toBeDefined()
+  })
+
+  xit('should be able to return a single state with `get`', function (done) {
+    var id = 'zone:nc:state:kogi'
+    statesService.cachedLgasByZone['nc'] = [{ _id: id }, {_id: 'b'}]
+    statesService.get(id)
+      .then(function (state) {
+        expect(state).toEqual({ _id: id })
+      })
+    $rootScope.$digest()
+    done()
   })
 })
