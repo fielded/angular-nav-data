@@ -4,25 +4,29 @@ const registerCallback = (replicationFrom, callback) => {
 
 class ProductsService {
   constructor ($injector, pouchDB, angularNavDataUtilsService) {
-    let dataModuleRemoteDB
-
-    try {
-      dataModuleRemoteDB = $injector.get('dataModuleRemoteDB')
-    } catch (e) {
-      throw new Error('dataModuleRemoteDB should be provided in the data module configuration')
-    }
-
     this.pouchDB = pouchDB
     this.angularNavDataUtilsService = angularNavDataUtilsService
 
-    this.remoteDB = this.pouchDB(dataModuleRemoteDB)
+    this.remoteDB
     this.replicationFrom
     this.localDB
     this.registeredOnReplicationCompleteCallbackIds = []
     this.callbacksPendingRegistration = []
+
+    let dataModuleRemoteDB
+    try {
+      dataModuleRemoteDB = $injector.get('dataModuleRemoteDB')
+      this.remoteDB = this.pouchDB(dataModuleRemoteDB)
+    } catch (e) {
+      if (console && console.log) {
+        console.log('AngularNavData error: dataModuleRemoteDB should be set')
+      }
+    }
   }
 
   startReplication (zone, state) {
+    if (!this.remoteDB) { return }
+
     var options = {
       filter: 'products/all'
     }
