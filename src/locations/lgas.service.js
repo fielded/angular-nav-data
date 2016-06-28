@@ -4,6 +4,7 @@ class LgasService {
     this.cachedLgaIdsByState = {}
     this.defaultZone
     this.defaultState
+    this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.smartId = smartId
@@ -13,6 +14,22 @@ class LgasService {
     // locations are replicated and the zone and state are set by default
     // with `setState`
     this.locationsService.callOnReplicationComplete('lgas-service', this.onReplicationComplete.bind(this))
+  }
+
+  registerOnCacheUpdatedCallback (id, callback) {
+    if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+      this.registeredOnCacheUpdatedCallbacks[id] = callback
+    }
+  }
+
+  unregisterOnCacheUpdatedCallback (id) {
+    delete this.registeredOnCacheUpdatedCallbacks[id]
+  }
+
+  onCacheUpdated () {
+    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
+      this.registeredOnCacheUpdatedCallbacks[id]()
+    })
   }
 
   onReplicationComplete () {
@@ -43,6 +60,11 @@ class LgasService {
     const updateCache = (state, docs) => {
       this.cachedLgasByState[state] = docs.map(addId)
       this.cachedLgaIdsByState[state] = this.cachedLgasByState[state].map(onlyId)
+      // This makes the assumption that the cache only contains an empty list
+      // of lgas when the replication is not yet done
+      if (this.cachedLgasByState[state].length) {
+        this.onCacheUpdated()
+      }
     }
 
     return query(zone, state)

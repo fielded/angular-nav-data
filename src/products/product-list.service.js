@@ -4,6 +4,7 @@ class ProductListService {
     this.cachedDryProducts = []
     this.cachedFrozenProducts = []
     this.relevant
+    this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.productsService = productsService
@@ -11,6 +12,22 @@ class ProductListService {
     // For the state dashboard:
     // products are replicated locally
     this.productsService.callOnReplicationComplete('products-list-service', this.onReplicationComplete.bind(this))
+  }
+
+  registerOnCacheUpdatedCallback (id, callback) {
+    if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+      this.registeredOnCacheUpdatedCallbacks[id] = callback
+    }
+  }
+
+  unregisterOnCacheUpdatedCallback (id) {
+    delete this.registeredOnCacheUpdatedCallbacks[id]
+  }
+
+  onCacheUpdated () {
+    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
+      this.registeredOnCacheUpdatedCallbacks[id]()
+    })
   }
 
   onReplicationComplete () {
@@ -50,6 +67,11 @@ class ProductListService {
       this.cachedProducts = docs.filter(isDefined)
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
       this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
+      // This makes the assumption that the cache only contains an empty list
+      // of products when the replication is not yet done
+      if (this.cachedProducts.length) {
+        this.onCacheUpdated()
+      }
     }
 
     return query()

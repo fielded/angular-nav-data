@@ -39,6 +39,14 @@ describe('statesService', function () {
     expect(statesService.get).toBeDefined()
   })
 
+  it('should expose a registerOnCacheUpdatedCallback function', function () {
+    expect(statesService.registerOnCacheUpdatedCallback).toBeDefined()
+  })
+
+  it('should expose a unregisterOnCacheUpdatedCallback function', function () {
+    expect(statesService.unregisterOnCacheUpdatedCallback).toBeDefined()
+  })
+
   xit('should be able to return a single state with `get`', function (done) {
     var id = 'zone:nc:state:kogi'
     statesService.cachedLgasByZone['nc'] = [{ _id: id }, {_id: 'b'}]

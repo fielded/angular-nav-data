@@ -3,6 +3,7 @@ class StatesService {
     this.cachedStatesByZone = {}
     this.cachedStateIdsByZone = {}
     this.defaultZone
+    this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.smartId = smartId
@@ -11,6 +12,22 @@ class StatesService {
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
     this.locationsService.callOnReplicationComplete('states-service', this.onReplicationComplete.bind(this))
+  }
+
+  registerOnCacheUpdatedCallback (id, callback) {
+    if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+      this.registeredOnCacheUpdatedCallbacks[id] = callback
+    }
+  }
+
+  unregisterOnCacheUpdatedCallback (id) {
+    delete this.registeredOnCacheUpdatedCallbacks[id]
+  }
+
+  onCacheUpdated () {
+    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
+      this.registeredOnCacheUpdatedCallbacks[id]()
+    })
   }
 
   onReplicationComplete () {
@@ -45,6 +62,11 @@ class StatesService {
     const updateCache = (zone, docs) => {
       this.cachedStatesByZone[zone] = docs.map(addId)
       this.cachedStateIdsByZone[zone] = this.cachedStatesByZone[zone].map(onlyId)
+      // This makes the assumption that the cache only contains an empty list
+      // of states when the replication is not yet done
+      if (this.cachedStatesByZone[zone].length) {
+        this.onCacheUpdated()
+      }
     }
 
     return query(zone)
