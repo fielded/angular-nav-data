@@ -3,14 +3,14 @@ class ProductListService {
     this.cachedProducts = []
     this.cachedDryProducts = []
     this.cachedFrozenProducts = []
-    this.relevant
+    this.relevant = []
 
     this.$q = $q
     this.productsService = productsService
 
     // For the state dashboard:
     // products are replicated locally
-    this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this))
+    this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this, { onlyRelevant: true }))
   }
 
   invalidateCaches () {
@@ -19,24 +19,31 @@ class ProductListService {
     this.cachedFrozenProducts = []
   }
 
-  queryAndUpdateCache () {
-    const query = () => {
-      var options = {
+  queryAndUpdateCache (options) {
+    const query = (options) => {
+      var queryOptions = {
         'include_docs': true
       }
 
       console.log('querying', this)
-      if (this.relevant) {
+      console.log('querying with options', options)
+      if (options.onlyRelevant) {
         console.log('relevant')
-        options.keys = this.relevant
+        if (this.relevant.length) {
+          queryOptions.keys = this.relevant
+        } else { // do not query the products until the list of relevant ones have been set
+          console.log('not yet ready, will repeat')
+          return this.$q.reject()
+        }
       } else {
-        console.log('no relevant')
-        options.ascending = true
-        options.startkey = 'product:'
-        options.endkey = 'product:' + '\uffff'
+        console.log('not only relevant')
+        queryOptions.ascending = true
+        queryOptions.startkey = 'product:'
+        queryOptions.endkey = 'product:' + '\uffff'
       }
 
-      return this.productsService.allDocs(options)
+      console.log('query options', queryOptions)
+      return this.productsService.allDocs(queryOptions)
     }
 
     const isDry = (product) => {
@@ -52,41 +59,47 @@ class ProductListService {
     }
 
     const updateCache = (docs) => {
-      console.log('updatedCaches')
+      console.log('updatingCaches', docs)
       this.cachedProducts = docs.filter(isDefined)
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
       this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
-      console.log('all', this.cachedProducts)
     }
 
-    return query()
+    options = options || {}
+    return query(options)
       .then(updateCache)
   }
 
-  all () {
-    console.log('querying all', this.cachedAllProducts)
+  all (options) {
+    console.log('querying all', this.cachedProducts)
+    console.log('all with options', options)
     if (!this.cachedProducts.length > 0) {
-      return this.queryAndUpdateCache()
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedProducts }.bind(this))
     }
+    console.log('returning all cached')
     return this.$q.when(this.cachedProducts)
   }
 
-  dry () {
+  dry (options) {
     console.log('querying dry', this.cachedDryProducts)
+    console.log('dry with options', options)
     if (!this.cachedDryProducts.length > 0) {
-      return this.queryAndUpdateCache()
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedDryProducts }.bind(this))
     }
+    console.log('returning dry cached')
     return this.$q.when(this.cachedDryProducts)
   }
 
-  frozen () {
+  frozen (options) {
     console.log('querying frozen', this.cachedFrozenProducts)
+    console.log('frozen with options', options)
     if (!this.cachedFrozenProducts.length > 0) {
-      return this.queryAndUpdateCache()
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedFrozenProducts }.bind(this))
     }
+    console.log('returning frozen cached')
     return this.$q.when(this.cachedFrozenProducts)
   }
 
@@ -94,7 +107,7 @@ class ProductListService {
     console.log('setting relevant', relevant)
     this.relevant = relevant
     this.invalidateCaches()
-    this.queryAndUpdateCache()
+    this.queryAndUpdateCache({ onlyRelevant: true })
   }
 }
 
