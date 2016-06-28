@@ -1,5 +1,5 @@
 class LgasService {
-  constructor ($q, smartId, locationsService, statesService) {
+  constructor ($q, smartId, locationsService, statesService, productListService) {
     this.cachedLgasByState = {}
     this.cachedLgaIdsByState = {}
     this.defaultZone
@@ -9,11 +9,12 @@ class LgasService {
     this.smartId = smartId
     this.locationsService = locationsService
     this.statesService = statesService
+    this.productListService = productListService
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
     // with `setState`
-    this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this))
+    this.locationsService.callOnReplicationComplete('lgas-service', this.onReplicationComplete.bind(this))
   }
 
   queryAndUpdateCache (zone, state) {
@@ -46,6 +47,19 @@ class LgasService {
       .then(updateCache.bind(null, state))
   }
 
+  configDefaultState (zone, state) {
+    const setRelevantProducts = (stateConfig) => {
+      this.productListService.setRelevant(stateConfig.products)
+    }
+
+    zone = zone || this.defaultZone
+    state = state || this.defaultState
+    var configId = 'configuration:zone:' + zone + ':state:' + state
+    this.locationsService
+      .get(configId)
+      .then(setRelevantProducts)
+  }
+
   byState (zone, state) {
     zone = zone || this.defaultZone
     state = state || this.defaultState
@@ -76,6 +90,11 @@ class LgasService {
     this.byState()
   }
 
+  onReplicationComplete () {
+    this.byState()
+    this.configDefaultState()
+  }
+
   get (lgaId) {
     // Why is this not working?
     // const findLga = (lgas) => lgas.find(lga => (lga._id === lgaId))
@@ -94,6 +113,6 @@ class LgasService {
   }
 }
 
-LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService']
+LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService']
 
 export default LgasService
