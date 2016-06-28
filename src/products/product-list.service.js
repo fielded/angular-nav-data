@@ -3,7 +3,7 @@ class ProductListService {
     this.cachedProducts = []
     this.cachedDryProducts = []
     this.cachedFrozenProducts = []
-    this.relevant
+    this.relevant = []
     this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
@@ -34,21 +34,27 @@ class ProductListService {
     this.all({ onlyRelevant: true, bustCache: true })
   }
 
-  queryAndUpdateCache () {
-    const query = () => {
-      var options = {
+  queryAndUpdateCache (options = {}) {
+    const query = (options) => {
+      var queryOptions = {
         'include_docs': true
       }
 
-      if (this.relevant) {
-        options.keys = this.relevant
+      if (options.onlyRelevant) {
+        if (this.relevant.length) {
+          queryOptions.keys = this.relevant
+        } else {
+          // this.relevant not yet set, returning all products is confusing,
+          // return an empty array instead
+          return this.$q.when([])
+        }
       } else {
-        options.ascending = true
-        options.startkey = 'product:'
-        options.endkey = 'product:' + '\uffff'
+        queryOptions.ascending = true
+        queryOptions.startkey = 'product:'
+        queryOptions.endkey = 'product:' + '\uffff'
       }
 
-      return this.productsService.allDocs(options)
+      return this.productsService.allDocs(queryOptions)
     }
 
     const isDry = (product) => {
@@ -74,7 +80,7 @@ class ProductListService {
       }
     }
 
-    return query()
+    return query(options)
       .then(updateCache)
   }
 
