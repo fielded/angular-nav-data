@@ -67,6 +67,8 @@ class StatesService {
 
   setZone (zone) {
     this.defaultZone = zone
+    // Update the cache with the default zone data
+    this.byZone()
   }
 
   get (stateId) {

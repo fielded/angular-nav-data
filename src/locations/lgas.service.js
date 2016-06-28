@@ -72,6 +72,8 @@ class LgasService {
 
     // Set or update the default zone on the zone service
     this.statesService.setZone(this.defaultZone)
+    // Call this.byState to update the cache with the default state data
+    this.byState()
   }
 
   get (lgaId) {
