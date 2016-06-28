@@ -10,7 +10,11 @@ class ProductListService {
 
     // For the state dashboard:
     // products are replicated locally
-    this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this))
+    this.productsService.callOnReplicationComplete('products-list-service', this.onReplicationComplete.bind(this))
+  }
+
+  onReplicationComplete () {
+    this.all({ onlyRelevant: true, bustCache: true })
   }
 
   queryAndUpdateCache () {
@@ -52,25 +56,25 @@ class ProductListService {
       .then(updateCache)
   }
 
-  all () {
-    if (!this.cachedProducts.length > 0) {
-      return this.queryAndUpdateCache()
+  all (options = {}) {
+    if (options.bustCache || !this.cachedProducts.length > 0) {
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedProducts }.bind(this))
     }
     return this.$q.when(this.cachedProducts)
   }
 
-  dry () {
-    if (!this.cachedDryProducts.length > 0) {
-      return this.queryAndUpdateCache()
+  dry (options = {}) {
+    if (options.bustCache || !this.cachedProducts.length > 0) {
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedDryProducts }.bind(this))
     }
     return this.$q.when(this.cachedDryProducts)
   }
 
-  frozen () {
-    if (!this.cachedFrozenProducts.length > 0) {
-      return this.queryAndUpdateCache()
+  frozen (options = {}) {
+    if (options.bustCache || !this.cachedProducts.length > 0) {
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedFrozenProducts }.bind(this))
     }
     return this.$q.when(this.cachedFrozenProducts)
@@ -78,6 +82,7 @@ class ProductListService {
 
   setRelevant (relevant) {
     this.relevant = relevant
+    this.all({ onlyRelevant: true, bustCache: true })
   }
 }
 

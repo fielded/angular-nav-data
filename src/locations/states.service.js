@@ -10,7 +10,11 @@ class StatesService {
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
-    this.locationsService.callOnReplicationComplete('states-service', this.byZone.bind(this))
+    this.locationsService.callOnReplicationComplete('states-service', this.onReplicationComplete.bind(this))
+  }
+
+  onReplicationComplete () {
+    this.byZone(null, { bustCache: true })
   }
 
   queryAndUpdateCache (zone) {
@@ -47,18 +51,16 @@ class StatesService {
       .then(updateCache.bind(null, zone))
   }
 
-  byZone (zone) {
-    zone = zone || this.defaultZone
-    if (!this.cachedStatesByZone[zone]) {
+  byZone (zone = this.defaultZone, options = {}) {
+    if (options.bustCache || !this.cachedStatesByZone[zone]) {
       return this.queryAndUpdateCache(zone)
               .then(function () { return this.cachedStatesByZone[zone] }.bind(this))
     }
     return this.$q.when(this.cachedStatesByZone[zone])
   }
 
-  idsByZone (zone) {
-    zone = zone || this.defaultZone
-    if (!this.cachedStatesByZone[zone]) {
+  idsByZone (zone = this.defaultZone, options = {}) {
+    if (options.bustCache || !this.cachedStatesByZone[zone]) {
       return this.queryAndUpdateCache(zone)
               .then(function () { return this.cachedStateIdsByZone[zone] }.bind(this))
     }
@@ -67,6 +69,7 @@ class StatesService {
 
   setZone (zone) {
     this.defaultZone = zone
+    this.byZone(null, { bustCache: true })
   }
 
   get (stateId) {

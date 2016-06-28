@@ -12,7 +12,11 @@ class LgasService {
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
     // with `setState`
-    this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this))
+    this.locationsService.callOnReplicationComplete('lgas-service', this.onReplicationComplete.bind(this))
+  }
+
+  onReplicationComplete () {
+    this.byState(null, null, { bustCache: true })
   }
 
   queryAndUpdateCache (zone, state) {
@@ -45,20 +49,16 @@ class LgasService {
       .then(updateCache.bind(null, state))
   }
 
-  byState (zone, state) {
-    zone = zone || this.defaultZone
-    state = state || this.defaultState
-    if (!this.cachedLgasByState[state]) {
+  byState (zone = this.defaultZone, state = this.defaultState, options = {}) {
+    if (options.bustCache || !this.cachedLgasByState[state]) {
       return this.queryAndUpdateCache(zone, state)
               .then(function () { return this.cachedLgasByState[state] }.bind(this))
     }
     return this.$q.when(this.cachedLgasByState[state])
   }
 
-  idsByState (zone, state) {
-    zone = zone || this.defaultZone
-    state = state || this.defaultState
-    if (!this.cachedLgasByState[state]) {
+  idsByState (zone = this.defaultZone, state = this.defaultState, options = {}) {
+    if (options.bustCache || !this.cachedLgasByState[state]) {
       return this.queryAndUpdateCache(zone, state)
               .then(function () { return this.cachedLgaIdsByState[state] }.bind(this))
     }
@@ -68,6 +68,7 @@ class LgasService {
   setState (zone, state) {
     this.defaultZone = zone
     this.defaultState = state
+    this.byState(null, null, { bustCache: true })
   }
 
   get (lgaId) {
