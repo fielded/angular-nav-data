@@ -25,9 +25,12 @@ class ProductListService {
         'include_docs': true
       }
 
+      console.log('querying', this)
       if (this.relevant) {
+        console.log('relevant')
         options.keys = this.relevant
       } else {
+        console.log('no relevant')
         options.ascending = true
         options.startkey = 'product:'
         options.endkey = 'product:' + '\uffff'
