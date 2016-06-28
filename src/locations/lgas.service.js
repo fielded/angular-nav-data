@@ -49,11 +49,13 @@ class LgasService {
 
   configDefaultState (zone, state) {
     const setRelevantProducts = (stateConfig) => {
+      console.log('got config', stateConfig)
       this.productListService.setRelevant(stateConfig.products)
     }
 
     zone = zone || this.defaultZone
     state = state || this.defaultState
+    console.log('setState', state)
     var configId = 'configuration:zone:' + zone + ':state:' + state
     this.locationsService
       .get(configId)
@@ -88,6 +90,7 @@ class LgasService {
     this.statesService.setZone(this.defaultZone)
     // Call this.byState to update the cache with the default state data
     this.byState()
+    this.configDefaultState()
   }
 
   onReplicationComplete () {

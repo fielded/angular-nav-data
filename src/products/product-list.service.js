@@ -13,6 +13,12 @@ class ProductListService {
     this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this))
   }
 
+  invalidateCaches () {
+    this.cachedProducts = []
+    this.cachedDryProducts = []
+    this.cachedFrozenProducts = []
+  }
+
   queryAndUpdateCache () {
     const query = () => {
       var options = {
@@ -43,9 +49,11 @@ class ProductListService {
     }
 
     const updateCache = (docs) => {
+      console.log('updatedCaches')
       this.cachedProducts = docs.filter(isDefined)
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
       this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
+      console.log('all', this.cachedProducts)
     }
 
     return query()
@@ -53,6 +61,7 @@ class ProductListService {
   }
 
   all () {
+    console.log('querying all', this.cachedAllProducts)
     if (!this.cachedProducts.length > 0) {
       return this.queryAndUpdateCache()
               .then(function () { return this.cachedProducts }.bind(this))
@@ -61,6 +70,7 @@ class ProductListService {
   }
 
   dry () {
+    console.log('querying dry', this.cachedDryProducts)
     if (!this.cachedDryProducts.length > 0) {
       return this.queryAndUpdateCache()
               .then(function () { return this.cachedDryProducts }.bind(this))
@@ -69,6 +79,7 @@ class ProductListService {
   }
 
   frozen () {
+    console.log('querying frozen', this.cachedFrozenProducts)
     if (!this.cachedFrozenProducts.length > 0) {
       return this.queryAndUpdateCache()
               .then(function () { return this.cachedFrozenProducts }.bind(this))
@@ -77,7 +88,10 @@ class ProductListService {
   }
 
   setRelevant (relevant) {
+    console.log('setting relevant', relevant)
     this.relevant = relevant
+    this.invalidateCaches()
+    this.queryAndUpdateCache()
   }
 }
 
