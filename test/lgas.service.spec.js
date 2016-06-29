@@ -40,6 +40,14 @@ describe('lgasService', function () {
     expect(lgasService.get).toBeDefined()
   })
 
+  it('should expose a registerOnCacheUpdatedCallback function', function () {
+    expect(lgasService.registerOnCacheUpdatedCallback).toBeDefined()
+  })
+
+  it('should expose a unregisterOnCacheUpdatedCallback function', function () {
+    expect(lgasService.unregisterOnCacheUpdatedCallback).toBeDefined()
+  })
+
   xit('should be able to return a single lga with `get`', function (done) {
     var id = 'zone:nc:state:kogi:lga:adavi'
     lgasService.cachedLgasByState['kogi'] = [{ _id: id }, {_id: 'b'}]

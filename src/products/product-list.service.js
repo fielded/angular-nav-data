@@ -3,31 +3,58 @@ class ProductListService {
     this.cachedProducts = []
     this.cachedDryProducts = []
     this.cachedFrozenProducts = []
-    this.relevant
+    this.relevant = []
+    this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.productsService = productsService
 
     // For the state dashboard:
     // products are replicated locally
-    this.productsService.callOnReplicationComplete('products-list-service', this.all.bind(this))
+    this.productsService.callOnReplicationComplete('products-list-service', this.onReplicationComplete.bind(this))
   }
 
-  queryAndUpdateCache () {
-    const query = () => {
-      var options = {
+  registerOnCacheUpdatedCallback (id, callback) {
+    if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+      this.registeredOnCacheUpdatedCallbacks[id] = callback
+    }
+  }
+
+  unregisterOnCacheUpdatedCallback (id) {
+    delete this.registeredOnCacheUpdatedCallbacks[id]
+  }
+
+  onCacheUpdated () {
+    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
+      this.registeredOnCacheUpdatedCallbacks[id]()
+    })
+  }
+
+  onReplicationComplete () {
+    this.all({ onlyRelevant: true, bustCache: true })
+  }
+
+  queryAndUpdateCache (options = {}) {
+    const query = (options) => {
+      var queryOptions = {
         'include_docs': true
       }
 
-      if (this.relevant) {
-        options.keys = this.relevant
+      if (options.onlyRelevant) {
+        if (this.relevant.length) {
+          queryOptions.keys = this.relevant
+        } else {
+          // this.relevant not yet set, returning all products is confusing,
+          // return an empty array instead
+          return this.$q.when([])
+        }
       } else {
-        options.ascending = true
-        options.startkey = 'product:'
-        options.endkey = 'product:' + '\uffff'
+        queryOptions.ascending = true
+        queryOptions.startkey = 'product:'
+        queryOptions.endkey = 'product:' + '\uffff'
       }
 
-      return this.productsService.allDocs(options)
+      return this.productsService.allDocs(queryOptions)
     }
 
     const isDry = (product) => {
@@ -46,31 +73,36 @@ class ProductListService {
       this.cachedProducts = docs.filter(isDefined)
       this.cachedDryProducts = this.cachedProducts.filter(isDry)
       this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
+      // This makes the assumption that the cache only contains an empty list
+      // of products when the replication is not yet done
+      if (this.cachedProducts.length) {
+        this.onCacheUpdated()
+      }
     }
 
-    return query()
+    return query(options)
       .then(updateCache)
   }
 
-  all () {
-    if (!this.cachedProducts.length > 0) {
-      return this.queryAndUpdateCache()
+  all (options = {}) {
+    if (options.bustCache || !this.cachedProducts.length > 0) {
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedProducts }.bind(this))
     }
     return this.$q.when(this.cachedProducts)
   }
 
-  dry () {
-    if (!this.cachedDryProducts.length > 0) {
-      return this.queryAndUpdateCache()
+  dry (options = {}) {
+    if (options.bustCache || !this.cachedProducts.length > 0) {
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedDryProducts }.bind(this))
     }
     return this.$q.when(this.cachedDryProducts)
   }
 
-  frozen () {
-    if (!this.cachedFrozenProducts.length > 0) {
-      return this.queryAndUpdateCache()
+  frozen (options = {}) {
+    if (options.bustCache || !this.cachedProducts.length > 0) {
+      return this.queryAndUpdateCache(options)
               .then(function () { return this.cachedFrozenProducts }.bind(this))
     }
     return this.$q.when(this.cachedFrozenProducts)
@@ -78,6 +110,7 @@ class ProductListService {
 
   setRelevant (relevant) {
     this.relevant = relevant
+    this.all({ onlyRelevant: true, bustCache: true })
   }
 }
 

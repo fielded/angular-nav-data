@@ -33,4 +33,12 @@ describe('productListService', function () {
   it('should expose a frozen function that returns only frozen products', function () {
     expect(productListService.frozen).toBeDefined()
   })
+
+  it('should expose a registerOnCacheUpdatedCallback function', function () {
+    expect(productListService.registerOnCacheUpdatedCallback).toBeDefined()
+  })
+
+  it('should expose a unregisterOnCacheUpdatedCallback function', function () {
+    expect(productListService.unregisterOnCacheUpdatedCallback).toBeDefined()
+  })
 })

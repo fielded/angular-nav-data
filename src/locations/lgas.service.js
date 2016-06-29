@@ -4,6 +4,7 @@ class LgasService {
     this.cachedLgaIdsByState = {}
     this.defaultZone
     this.defaultState
+    this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.smartId = smartId
@@ -12,7 +13,27 @@ class LgasService {
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
     // with `setState`
-    this.locationsService.callOnReplicationComplete('lgas-service', this.byState.bind(this))
+    this.locationsService.callOnReplicationComplete('lgas-service', this.onReplicationComplete.bind(this))
+  }
+
+  registerOnCacheUpdatedCallback (id, callback) {
+    if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+      this.registeredOnCacheUpdatedCallbacks[id] = callback
+    }
+  }
+
+  unregisterOnCacheUpdatedCallback (id) {
+    delete this.registeredOnCacheUpdatedCallbacks[id]
+  }
+
+  onCacheUpdated () {
+    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
+      this.registeredOnCacheUpdatedCallbacks[id]()
+    })
+  }
+
+  onReplicationComplete () {
+    this.byState(null, null, { bustCache: true })
   }
 
   queryAndUpdateCache (zone, state) {
@@ -39,26 +60,27 @@ class LgasService {
     const updateCache = (state, docs) => {
       this.cachedLgasByState[state] = docs.map(addId)
       this.cachedLgaIdsByState[state] = this.cachedLgasByState[state].map(onlyId)
+      // This makes the assumption that the cache only contains an empty list
+      // of lgas when the replication is not yet done
+      if (this.cachedLgasByState[state].length) {
+        this.onCacheUpdated()
+      }
     }
 
     return query(zone, state)
       .then(updateCache.bind(null, state))
   }
 
-  byState (zone, state) {
-    zone = zone || this.defaultZone
-    state = state || this.defaultState
-    if (!this.cachedLgasByState[state]) {
+  byState (zone = this.defaultZone, state = this.defaultState, options = {}) {
+    if (options.bustCache || !this.cachedLgasByState[state]) {
       return this.queryAndUpdateCache(zone, state)
               .then(function () { return this.cachedLgasByState[state] }.bind(this))
     }
     return this.$q.when(this.cachedLgasByState[state])
   }
 
-  idsByState (zone, state) {
-    zone = zone || this.defaultZone
-    state = state || this.defaultState
-    if (!this.cachedLgasByState[state]) {
+  idsByState (zone = this.defaultZone, state = this.defaultState, options = {}) {
+    if (options.bustCache || !this.cachedLgasByState[state]) {
       return this.queryAndUpdateCache(zone, state)
               .then(function () { return this.cachedLgaIdsByState[state] }.bind(this))
     }
@@ -68,6 +90,7 @@ class LgasService {
   setState (zone, state) {
     this.defaultZone = zone
     this.defaultState = state
+    this.byState(null, null, { bustCache: true })
   }
 
   get (lgaId) {
