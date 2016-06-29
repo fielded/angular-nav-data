@@ -55,6 +55,11 @@ class LocationsService {
     const db = this.localDB || this.remoteDB
     return this.angularNavDataUtilsService.allDocs(db, options)
   }
+
+  get (id) {
+    const db = this.localDB || this.remoteDB
+    return db.get(id)
+  }
 }
 
 LocationsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService']

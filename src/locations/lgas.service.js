@@ -1,5 +1,5 @@
 class LgasService {
-  constructor ($q, smartId, locationsService, statesService) {
+  constructor ($q, smartId, locationsService, statesService, productListService) {
     this.cachedLgasByState = {}
     this.cachedLgaIdsByState = {}
     this.defaultZone
@@ -10,6 +10,7 @@ class LgasService {
     this.smartId = smartId
     this.locationsService = locationsService
     this.statesService = statesService
+    this.productListService = productListService
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
@@ -34,7 +35,23 @@ class LgasService {
   }
 
   onReplicationComplete () {
+    this.bustCaches()
+  }
+
+  bustCaches () {
     this.byState(null, null, { bustCache: true })
+    this.setDefaultStateRelevantProducts()
+  }
+
+  setDefaultStateRelevantProducts () {
+    const setRelevantProducts = (stateConfig) => {
+      this.productListService.setRelevant(stateConfig.products)
+    }
+
+    var configId = 'configuration:' + this.smartId.idify({ zone: this.defaultZone, state: this.defaultState }, 'zone:state')
+    this.locationsService
+      .get(configId)
+      .then(setRelevantProducts)
   }
 
   queryAndUpdateCache (zone, state) {
@@ -92,7 +109,7 @@ class LgasService {
     this.defaultZone = zone
     this.defaultState = state
     this.statesService.setZone(this.defaultZone)
-    this.byState(null, null, { bustCache: true })
+    this.bustCaches()
   }
 
   get (lgaId) {
@@ -113,6 +130,6 @@ class LgasService {
   }
 }
 
-LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService']
+LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService']
 
 export default LgasService
