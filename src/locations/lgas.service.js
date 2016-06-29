@@ -1,5 +1,5 @@
 class LgasService {
-  constructor ($q, smartId, locationsService) {
+  constructor ($q, smartId, locationsService, statesService) {
     this.cachedLgasByState = {}
     this.cachedLgaIdsByState = {}
     this.defaultZone
@@ -9,6 +9,7 @@ class LgasService {
     this.$q = $q
     this.smartId = smartId
     this.locationsService = locationsService
+    this.statesService = statesService
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
@@ -90,6 +91,7 @@ class LgasService {
   setState (zone, state) {
     this.defaultZone = zone
     this.defaultState = state
+    this.statesService.setZone(this.defaultZone)
     this.byState(null, null, { bustCache: true })
   }
 
@@ -111,6 +113,6 @@ class LgasService {
   }
 }
 
-LgasService.$inject = ['$q', 'smartId', 'locationsService']
+LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService']
 
 export default LgasService
