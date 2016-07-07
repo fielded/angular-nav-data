@@ -4,18 +4,14 @@
 
 ### Config
 
-Provide the url for the remote CouchDB database as a `value` to your Angular module:
+In your Angular module provide the url for the remote CouchDB database as `dataModuleRemoteDB`.
+
+Example:
 
 ```js
-angular.module('myMod', [])
-  .value('remote', '-')
-```
-
-You can also provide a set of patterns to be reused through the application:
-
-```js
-angular.module('myMod', [])
-  .value('navDataRemoteDB', 'your-remote-db-url')
+.factory('dataModuleRemoteDB', function (config) {
+  return config.couchDB + config.integratedDataRemoteDB
+})
 ```
 
 ## Installation
