@@ -26,14 +26,6 @@ describe('productListService', function () {
     expect(productListService.all).toBeDefined()
   })
 
-  it('should expose a dry function that returns only dry products', function () {
-    expect(productListService.dry).toBeDefined()
-  })
-
-  it('should expose a frozen function that returns only frozen products', function () {
-    expect(productListService.frozen).toBeDefined()
-  })
-
   it('should expose a registerOnCacheUpdatedCallback function', function () {
     expect(productListService.registerOnCacheUpdatedCallback).toBeDefined()
   })

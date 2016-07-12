@@ -1,8 +1,6 @@
 class ProductListService {
   constructor ($q, productsService) {
     this.cachedProducts = []
-    this.cachedDryProducts = []
-    this.cachedFrozenProducts = []
     this.relevant = []
     this.registeredOnCacheUpdatedCallbacks = {}
 
@@ -57,22 +55,12 @@ class ProductListService {
       return this.productsService.allDocs(queryOptions)
     }
 
-    const isDry = (product) => {
-      return product.storageType === 'dry'
-    }
-
-    const isFrozen = (product) => {
-      return product.storageType === 'frozen'
-    }
-
     const isDefined = (doc) => {
       return typeof doc !== 'undefined'
     }
 
     const updateCache = (docs) => {
       this.cachedProducts = docs.filter(isDefined)
-      this.cachedDryProducts = this.cachedProducts.filter(isDry)
-      this.cachedFrozenProducts = this.cachedProducts.filter(isFrozen)
       // This makes the assumption that the cache only contains an empty list
       // of products when the replication is not yet done
       if (this.cachedProducts.length) {
@@ -85,27 +73,26 @@ class ProductListService {
   }
 
   all (options = {}) {
-    if (options.bustCache || !this.cachedProducts.length > 0) {
-      return this.queryAndUpdateCache(options)
-              .then(function () { return this.cachedProducts }.bind(this))
+    const byType = (type, product) => {
+      return product.storageType === type
     }
-    return this.$q.when(this.cachedProducts)
-  }
 
-  dry (options = {}) {
-    if (options.bustCache || !this.cachedProducts.length > 0) {
-      return this.queryAndUpdateCache(options)
-              .then(function () { return this.cachedDryProducts }.bind(this))
+    const prepareRes = () => {
+      if (options.byType) {
+        return {
+          dry: this.cachedProducts.filter(byType.bind(null, 'dry')),
+          frozen: this.cachedProducts.filter(byType.bind(null, 'frozen'))
+        }
+      }
+      return this.cachedProducts
     }
-    return this.$q.when(this.cachedDryProducts)
-  }
 
-  frozen (options = {}) {
-    if (options.bustCache || !this.cachedProducts.length > 0) {
-      return this.queryAndUpdateCache(options)
-              .then(function () { return this.cachedFrozenProducts }.bind(this))
+    if (this.cachedProducts.length && !options.bustCache) {
+      return this.$q.when(prepareRes())
     }
-    return this.$q.when(this.cachedFrozenProducts)
+
+    return this.queryAndUpdateCache(options)
+            .then(prepareRes)
   }
 
   setRelevant (relevant) {
