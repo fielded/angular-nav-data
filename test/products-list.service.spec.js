@@ -18,12 +18,16 @@ describe('productListService', function () {
     it('should set the relevant products for the location', function () {
       var relevant = ['product:tt', 'product:mv', 'product:bcg']
       productListService.setRelevant(relevant)
-      expect(productListService.relevant).toEqual(relevant)
+      expect(productListService.relevantIds).toEqual(relevant)
     })
   })
 
   it('should expose an all function that returns all products', function () {
     expect(productListService.all).toBeDefined()
+  })
+
+  it('should expose a relevant function that returns only relevant products', function () {
+    expect(productListService.relevant).toBeDefined()
   })
 
   it('should expose a registerOnCacheUpdatedCallback function', function () {

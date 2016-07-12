@@ -1,15 +1,15 @@
 class ProductListService {
   constructor ($q, productsService) {
     this.cachedProducts = []
-    this.relevant = []
+    this.relevantIds = []
     this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.productsService = productsService
 
-    // For the state dashboard:
-    // products are replicated locally
-    this.productsService.callOnReplicationComplete('products-list-service', this.onReplicationComplete.bind(this))
+    // For state dashboard: products replicated locally and only a set of products is relevant
+    const onReplicationComplete = this.relevant.bind(this, { bustCache: true })
+    this.productsService.callOnReplicationComplete('products-list-service', onReplicationComplete)
   }
 
   registerOnCacheUpdatedCallback (id, callback) {
@@ -28,10 +28,6 @@ class ProductListService {
     })
   }
 
-  onReplicationComplete () {
-    this.all({ onlyRelevant: true, bustCache: true })
-  }
-
   queryAndUpdateCache (options = {}) {
     const query = (options) => {
       var queryOptions = {
@@ -39,10 +35,10 @@ class ProductListService {
       }
 
       if (options.onlyRelevant) {
-        if (this.relevant.length) {
-          queryOptions.keys = this.relevant
+        if (this.relevantIds.length) {
+          queryOptions.keys = this.relevantIds
         } else {
-          // this.relevant not yet set, returning all products is confusing,
+          // this.relevantIds not yet set, returning all products is confusing,
           // return an empty array instead
           return this.$q.when([])
         }
@@ -72,6 +68,11 @@ class ProductListService {
       .then(updateCache)
   }
 
+  relevant (options = {}) {
+    options.onlyRelevant = true
+    return this.all(options)
+  }
+
   all (options = {}) {
     const byType = (type, product) => {
       return product.storageType === type
@@ -95,9 +96,9 @@ class ProductListService {
             .then(prepareRes)
   }
 
-  setRelevant (relevant) {
-    this.relevant = relevant
-    this.all({ onlyRelevant: true, bustCache: true })
+  setRelevant (relevantIds) {
+    this.relevantIds = relevantIds
+    this.relevant({ bustCache: true })
   }
 }
 
