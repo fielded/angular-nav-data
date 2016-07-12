@@ -17,4 +17,9 @@ export default class UtilsService {
     return db.allDocs(options)
             .then(parseAllDocsResponse)
   }
+
+  callEach (callbacks) {
+    const call = (id) => callbacks[id]()
+    Object.keys(callbacks).forEach(call)
+  }
 }

@@ -1,16 +1,13 @@
-const callEach = (callbacks) => {
-  const call = (id) => callbacks[id]()
-  Object.keys(callbacks).forEach(call)
-}
 
 class ProductListService {
-  constructor ($q, productsService) {
+  constructor ($q, productsService, angularNavDataUtilsService) {
     this.cachedProducts = []
     this.relevantIds = []
     this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.productsService = productsService
+    this.utils = angularNavDataUtilsService
 
     // For state dashboard: products replicated locally and only a set of products is relevant
     const onReplicationComplete = this.relevant.bind(this, { bustCache: true })
@@ -52,7 +49,7 @@ class ProductListService {
       // This makes the assumption that the cache only contains an empty list
       // of products when the replication is not yet done
       if (this.cachedProducts.length) {
-        callEach(this.registeredOnCacheUpdatedCallbacks)
+        this.utils.callEach(this.registeredOnCacheUpdatedCallbacks)
       }
     }
 
@@ -94,6 +91,6 @@ class ProductListService {
   }
 }
 
-ProductListService.$inject = ['$q', 'productsService']
+ProductListService.$inject = ['$q', 'productsService', 'angularNavDataUtilsService']
 
 export default ProductListService
