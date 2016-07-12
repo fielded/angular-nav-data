@@ -40,4 +40,10 @@ export default class UtilsService {
     }
     return isCompletelyEmpty
   }
+
+  toArray (obj) {
+    return Object.keys(obj).reduce((array, key) => {
+      return array.concat(obj[key])
+    }, [])
+  }
 }

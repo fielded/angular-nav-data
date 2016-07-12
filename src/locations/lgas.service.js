@@ -105,6 +105,9 @@ class LgasService {
         res = res[options.state]
       }
 
+      if (options.asArray) {
+        res = this.utils.toArray(res)
+      }
 
       return res
     }
@@ -122,6 +125,11 @@ class LgasService {
 
   idsByState (options = {}) {
     options.onlyIds = true
+    return this.byState(options)
+  }
+
+  list (options = {}) {
+    options.asArray = true
     return this.byState(options)
   }
 

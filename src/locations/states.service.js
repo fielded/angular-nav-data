@@ -85,6 +85,9 @@ class StatesService {
         res = res[options.zone]
       }
 
+      if (options.asArray) {
+        res = this.utils.toArray(res)
+      }
 
       return res
     }
@@ -101,6 +104,11 @@ class StatesService {
 
   idsByZone (options = {}) {
     options.onlyIds = true
+    return this.byZone(options)
+  }
+
+  list (options = {}) {
+    options.asArray = true
     return this.byZone(options)
   }
 
