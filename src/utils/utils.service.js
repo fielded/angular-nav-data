@@ -22,4 +22,17 @@ export default class UtilsService {
     const call = (id) => callbacks[id]()
     Object.keys(callbacks).forEach(call)
   }
+
+  isEmptyObject (obj) {
+    return !Object.keys(obj).length
+  }
+
+  isIndexedCacheEmpty (cache, field) {
+    let isCompletelyEmpty = this.isEmptyObject(cache)
+
+    if (!isCompletelyEmpty && field) {
+      return (!cache[field] || !cache[field].length)
+    }
+    return isCompletelyEmpty
+  }
 }
