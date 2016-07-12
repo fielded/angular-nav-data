@@ -52,19 +52,23 @@ class LgasService {
     }
 
     const query = (options) => {
+      const queryOptions = {
+        'include_docs': true,
+        ascending: true
+      }
+
       // For state dashboard (querying local PouchDB) prefer the more
       // performant `allDocs` instead of a view
       if (options.zone && options.state) {
-        const queryOptions = {
-          'include_docs': true,
-          ascending: true,
-          startkey: 'zone:' + options.zone + ':state:' + options.state + ':',
-          endkey: 'zone:' + options.zone + ':state:' + options.state + ':\uffff'
-        }
+        queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':'
+        queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':\uffff'
 
         return this.locationsService.allDocs(queryOptions)
       }
-      // TODO: for national dashboard
+
+      // For national dashboard
+      queryOptions.key = 'lga'
+      return this.locationsService.query('locations/by-level', queryOptions)
     }
 
     const updateCache = (state, docs) => {

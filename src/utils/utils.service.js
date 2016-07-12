@@ -6,7 +6,7 @@ const isDefined = (doc) => {
   return typeof doc !== 'undefined'
 }
 
-const parseAllDocsResponse = (response) => {
+const parseResponse = (response) => {
   return response.rows
           .map(pluckDocs)
           .filter(isDefined)
@@ -15,7 +15,12 @@ const parseAllDocsResponse = (response) => {
 export default class UtilsService {
   allDocs (db, options) {
     return db.allDocs(options)
-            .then(parseAllDocsResponse)
+            .then(parseResponse)
+  }
+
+  query (db, view, options) {
+    return db.query(view, options)
+            .then(parseResponse)
   }
 
   callEach (callbacks) {
