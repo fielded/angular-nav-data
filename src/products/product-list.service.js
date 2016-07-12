@@ -1,3 +1,8 @@
+const callEach = (callbacks) => {
+  const call = (id) => callbacks[id]()
+  Object.keys(callbacks).forEach(call)
+}
+
 class ProductListService {
   constructor ($q, productsService) {
     this.cachedProducts = []
@@ -22,12 +27,6 @@ class ProductListService {
     delete this.registeredOnCacheUpdatedCallbacks[id]
   }
 
-  onCacheUpdated () {
-    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
-      this.registeredOnCacheUpdatedCallbacks[id]()
-    })
-  }
-
   queryAndUpdateCache (options = {}) {
     const query = (options) => {
       var queryOptions = {
@@ -35,13 +34,10 @@ class ProductListService {
       }
 
       if (options.onlyRelevant) {
-        if (this.relevantIds.length) {
-          queryOptions.keys = this.relevantIds
-        } else {
-          // this.relevantIds not yet set, returning all products is confusing,
-          // return an empty array instead
+        if (!this.relevantIds.length) { // no product is relevant
           return this.$q.when([])
         }
+        queryOptions.keys = this.relevantIds
       } else {
         queryOptions.ascending = true
         queryOptions.startkey = 'product:'
@@ -51,16 +47,12 @@ class ProductListService {
       return this.productsService.allDocs(queryOptions)
     }
 
-    const isDefined = (doc) => {
-      return typeof doc !== 'undefined'
-    }
-
     const updateCache = (docs) => {
-      this.cachedProducts = docs.filter(isDefined)
+      this.cachedProducts = docs
       // This makes the assumption that the cache only contains an empty list
       // of products when the replication is not yet done
       if (this.cachedProducts.length) {
-        this.onCacheUpdated()
+        callEach(this.registeredOnCacheUpdatedCallbacks)
       }
     }
 

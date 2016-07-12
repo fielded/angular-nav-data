@@ -2,8 +2,14 @@ const pluckDocs = (item) => {
   return item.doc
 }
 
+const isDefined = (doc) => {
+  return typeof doc !== 'undefined'
+}
+
 const parseAllDocsResponse = (response) => {
-  return response.rows.map(pluckDocs)
+  return response.rows
+          .map(pluckDocs)
+          .filter(isDefined)
 }
 
 export default class UtilsService {
