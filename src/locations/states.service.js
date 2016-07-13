@@ -1,17 +1,18 @@
 class StatesService {
-  constructor ($q, smartId, locationsService) {
+  constructor ($q, smartId, locationsService, angularNavDataUtilsService) {
     this.cachedStatesByZone = {}
-    this.cachedStateIdsByZone = {}
     this.defaultZone
     this.registeredOnCacheUpdatedCallbacks = {}
 
     this.$q = $q
     this.smartId = smartId
     this.locationsService = locationsService
+    this.utils = angularNavDataUtilsService
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
-    this.locationsService.callOnReplicationComplete('states-service', this.onReplicationComplete.bind(this))
+    const onReplicationComplete = this.byZone.bind(this, { bustCache: true })
+    this.locationsService.callOnReplicationComplete('states-service', onReplicationComplete)
   }
 
   registerOnCacheUpdatedCallback (id, callback) {
@@ -24,74 +25,96 @@ class StatesService {
     delete this.registeredOnCacheUpdatedCallbacks[id]
   }
 
-  onCacheUpdated () {
-    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
-      this.registeredOnCacheUpdatedCallbacks[id]()
-    })
-  }
-
-  onReplicationComplete () {
-    this.byZone(null, { bustCache: true })
-  }
-
-  queryAndUpdateCache (zone) {
-    const onlyId = (state) => {
-      return state.id
-    }
-
+  queryAndUpdateCache (options) {
     const addId = (state) => {
       state.id = this.smartId.parse(state._id).state
       return state
     }
 
-    const filterStates = (docs) => {
-      return docs.filter(doc => doc.level === 'state')
-    }
-
-    const query = (zone) => {
-      var options = {
+    const query = (options) => {
+      const queryOptions = {
         'include_docs': true,
-        ascending: true,
-        startkey: 'zone:' + zone + ':',
-        endkey: 'zone:' + zone + ':\uffff'
+        ascending: true
       }
 
-      return this.locationsService.allDocs(options).then(filterStates)
+      // For state dashboard (querying local PouchDB) prefer the more
+      // performant `allDocs` instead of a view
+      if (options.zone) {
+        queryOptions.startkey = 'zone:' + options.zone + ':'
+        queryOptions.endkey = 'zone:' + options.zone + ':\uffff'
+
+        return this.locationsService.allDocs(queryOptions)
+      }
+
+      // For national dashboard
+      queryOptions.key = 'state'
+      return this.locationsService.query('locations/by-level', queryOptions)
     }
 
     const updateCache = (zone, docs) => {
-      this.cachedStatesByZone[zone] = docs.map(addId)
-      this.cachedStateIdsByZone[zone] = this.cachedStatesByZone[zone].map(onlyId)
+      const withIds = docs.map(addId)
+      if (zone) {
+        this.cachedStatesByZone[zone] = withIds
+      } else {
+        this.cachedStatesByZone = withIds
+      }
       // This makes the assumption that the cache only contains an empty list
       // of states when the replication is not yet done
-      if (this.cachedStatesByZone[zone].length) {
-        this.onCacheUpdated()
+      if (!this.utils.isIndexedCacheEmpty(this.cachedStatesByZone, zone)) {
+        this.utils.callEach(this.registeredOnCacheUpdatedCallbacks)
       }
     }
 
-    return query(zone)
-      .then(updateCache.bind(null, zone))
+    return query(options)
+      .then(updateCache.bind(null, options.zone))
   }
 
-  byZone (zone = this.defaultZone, options = {}) {
-    if (options.bustCache || !this.cachedStatesByZone[zone]) {
-      return this.queryAndUpdateCache(zone)
-              .then(function () { return this.cachedStatesByZone[zone] }.bind(this))
+  byZone (options = {}) {
+    const onlyId = (doc) => doc.id
+
+    const prepareRes = () => {
+      let res = angular.copy(this.cachedStatesByZone)
+
+      if (options.onlyIds) {
+        Object.keys(res).forEach((key) => {
+          res[key] = res[key].map(onlyId)
+        })
+      }
+
+      if (options.zone) {
+        res = res[options.zone]
+      }
+
+      if (options.asArray) {
+        res = this.utils.toArray(res)
+      }
+
+      return res
     }
-    return this.$q.when(this.cachedStatesByZone[zone])
+
+    options.zone = options.zone || this.defaultZone
+
+    if (!options.bustCache && !this.utils.isIndexedCacheEmpty(this.cachedStatesByZone, options.zone)) {
+      return this.$q.when(prepareRes())
+    }
+
+    return this.queryAndUpdateCache(options)
+      .then(prepareRes)
   }
 
-  idsByZone (zone = this.defaultZone, options = {}) {
-    if (options.bustCache || !this.cachedStatesByZone[zone]) {
-      return this.queryAndUpdateCache(zone)
-              .then(function () { return this.cachedStateIdsByZone[zone] }.bind(this))
-    }
-    return this.$q.when(this.cachedStateIdsByZone[zone])
+  idsByZone (options = {}) {
+    options.onlyIds = true
+    return this.byZone(options)
+  }
+
+  list (options = {}) {
+    options.asArray = true
+    return this.byZone(options)
   }
 
   setZone (zone) {
     this.defaultZone = zone
-    this.byZone(null, { bustCache: true })
+    this.byZone({ bustCache: true })
   }
 
   get (stateId) {
@@ -107,10 +130,10 @@ class StatesService {
     }
 
     const zone = this.smartId.parse(stateId).zone
-    return this.byZone(zone).then(findState)
+    return this.byZone({ zone: zone }).then(findState)
   }
 }
 
-StatesService.$inject = ['$q', 'smartId', 'locationsService']
+StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService']
 
 export default StatesService

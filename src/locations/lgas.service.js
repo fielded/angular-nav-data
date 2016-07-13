@@ -1,7 +1,6 @@
 class LgasService {
-  constructor ($q, smartId, locationsService, statesService, productListService) {
+  constructor ($q, smartId, locationsService, statesService, productListService, angularNavDataUtilsService) {
     this.cachedLgasByState = {}
-    this.cachedLgaIdsByState = {}
     this.defaultZone
     this.defaultState
     this.registeredOnCacheUpdatedCallbacks = {}
@@ -11,11 +10,13 @@ class LgasService {
     this.locationsService = locationsService
     this.statesService = statesService
     this.productListService = productListService
+    this.utils = angularNavDataUtilsService
 
     // For the state dashboard:
     // locations are replicated and the zone and state are set by default
     // with `setState`
-    this.locationsService.callOnReplicationComplete('lgas-service', this.onReplicationComplete.bind(this))
+    const onReplicationComplete = this.bustCache.bind(this)
+    this.locationsService.callOnReplicationComplete('lgas-service', onReplicationComplete)
   }
 
   registerOnCacheUpdatedCallback (id, callback) {
@@ -28,18 +29,8 @@ class LgasService {
     delete this.registeredOnCacheUpdatedCallbacks[id]
   }
 
-  onCacheUpdated () {
-    Object.keys(this.registeredOnCacheUpdatedCallbacks).forEach((id) => {
-      this.registeredOnCacheUpdatedCallbacks[id]()
-    })
-  }
-
-  onReplicationComplete () {
-    this.bustCaches()
-  }
-
-  bustCaches () {
-    this.byState(null, null, { bustCache: true })
+  bustCache () {
+    this.byState({ bustCache: true })
     this.setDefaultStateRelevantProducts()
   }
 
@@ -48,74 +39,108 @@ class LgasService {
       this.productListService.setRelevant(stateConfig.products)
     }
 
-    var configId = 'configuration:' + this.smartId.idify({ zone: this.defaultZone, state: this.defaultState }, 'zone:state')
+    const configId = 'configuration:' + this.smartId.idify({ zone: this.defaultZone, state: this.defaultState }, 'zone:state')
     this.locationsService
       .get(configId)
       .then(setRelevantProducts)
   }
 
-  queryAndUpdateCache (zone, state) {
-    const onlyId = (lga) => {
-      return lga.id
-    }
-
+  queryAndUpdateCache (options) {
     const addId = (lga) => {
       lga.id = this.smartId.parse(lga._id).lga
       return lga
     }
 
-    const query = (zone, state) => {
-      var options = {
+    const query = (options) => {
+      const queryOptions = {
         'include_docs': true,
-        ascending: true,
-        startkey: 'zone:' + zone + ':state:' + state + ':',
-        endkey: 'zone:' + zone + ':state:' + state + ':\uffff'
+        ascending: true
       }
 
-      return this.locationsService.allDocs(options)
+      // For state dashboard (querying local PouchDB) prefer the more
+      // performant `allDocs` instead of a view
+      if (options.zone && options.state) {
+        queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':'
+        queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':\uffff'
+
+        return this.locationsService.allDocs(queryOptions)
+      }
+
+      // For national dashboard
+      queryOptions.key = 'lga'
+      return this.locationsService.query('locations/by-level', queryOptions)
     }
 
     const updateCache = (state, docs) => {
-      this.cachedLgasByState[state] = docs.map(addId)
-      this.cachedLgaIdsByState[state] = this.cachedLgasByState[state].map(onlyId)
+      const withIds = docs.map(addId)
+      if (state) {
+        this.cachedLgasByState[state] = withIds
+      } else {
+        this.cachedLgasByState = withIds
+      }
       // This makes the assumption that the cache only contains an empty list
       // of lgas when the replication is not yet done
-      if (this.cachedLgasByState[state].length) {
-        this.onCacheUpdated()
+      if (!this.utils.isIndexedCacheEmpty(this.cachedLgasByState, state)) {
+        this.utils.callEach(this.registeredOnCacheUpdatedCallbacks)
       }
     }
 
-    return query(zone, state)
-      .then(updateCache.bind(null, state))
+    return query(options)
+      .then(updateCache.bind(null, options.state))
   }
 
-  byState (zone = this.defaultZone, state = this.defaultState, options = {}) {
-    if (options.bustCache || !this.cachedLgasByState[state]) {
-      return this.queryAndUpdateCache(zone, state)
-              .then(function () { return this.cachedLgasByState[state] }.bind(this))
+  byState (options = {}) {
+    const onlyId = (doc) => doc.id
+
+    const prepareRes = () => {
+      let res = angular.copy(this.cachedLgasByState)
+
+      if (options.onlyIds) {
+        Object.keys(res).forEach((key) => {
+          res[key] = res[key].map(onlyId)
+        })
+      }
+
+      if (options.zone && options.state) {
+        res = res[options.state]
+      }
+
+      if (options.asArray) {
+        res = this.utils.toArray(res)
+      }
+
+      return res
     }
-    return this.$q.when(this.cachedLgasByState[state])
+
+    options.zone = options.zone || this.defaultZone
+    options.state = options.state || this.defaultState
+
+    if (!options.bustCache && !this.utils.isIndexedCacheEmpty(this.cachedLgasByState, options.state)) {
+      return this.$q.when(prepareRes())
+    }
+
+    return this.queryAndUpdateCache(options)
+      .then(prepareRes)
   }
 
-  idsByState (zone = this.defaultZone, state = this.defaultState, options = {}) {
-    if (options.bustCache || !this.cachedLgasByState[state]) {
-      return this.queryAndUpdateCache(zone, state)
-              .then(function () { return this.cachedLgaIdsByState[state] }.bind(this))
-    }
-    return this.$q.when(this.cachedLgaIdsByState[state])
+  idsByState (options = {}) {
+    options.onlyIds = true
+    return this.byState(options)
+  }
+
+  list (options = {}) {
+    options.asArray = true
+    return this.byState(options)
   }
 
   setState (zone, state) {
     this.defaultZone = zone
     this.defaultState = state
     this.statesService.setZone(this.defaultZone)
-    this.bustCaches()
+    this.bustCache()
   }
 
   get (lgaId) {
-    // Why is this not working?
-    // const findLga = (lgas) => lgas.find(lga => (lga._id === lgaId))
-
     const findLga = (lgas) => {
       for (const lga of lgas) {
         if (lga._id === lgaId) {
@@ -126,10 +151,10 @@ class LgasService {
 
     const state = this.smartId.parse(lgaId).state
     const zone = this.smartId.parse(lgaId).zone
-    return this.byState(zone, state).then(findLga)
+    return this.byState({ zone: zone, state: state }).then(findLga)
   }
 }
 
-LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService']
+LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService', 'angularNavDataUtilsService']
 
 export default LgasService

@@ -56,6 +56,11 @@ class LocationsService {
     return this.angularNavDataUtilsService.allDocs(db, options)
   }
 
+  query (view, options) {
+    const db = this.localDB || this.remoteDB
+    return this.angularNavDataUtilsService.query(db, view, options)
+  }
+
   get (id) {
     const db = this.localDB || this.remoteDB
     return db.get(id)
