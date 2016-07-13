@@ -24,11 +24,14 @@ class LocationsService {
 
   startReplication (zone, state) {
     var options = {
-      filter: 'locations/by-state',
+      filter: 'locations/by-level',
       query_params: {
-        zone: zone,
-        state: state
+        zone: zone
       }
+    }
+
+    if (state) {
+      options.query_params.state = state
     }
 
     this.localDB = this.pouchDB('navIntLocationsDB')
