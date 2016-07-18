@@ -1,6 +1,4 @@
 import angular from 'angular'
-import 'ng-smart-id'
-import 'angular-pouchdb/dist/angular-pouchdb'
 
 import LocationsService from './locations.service'
 import LgasService from './lgas.service'
