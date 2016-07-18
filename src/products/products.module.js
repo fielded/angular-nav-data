@@ -1,4 +1,5 @@
 import angular from 'angular'
+import 'angular-pouchdb/dist/angular-pouchdb'
 
 import ProductsService from './products.service'
 import ProductListService from './product-list.service'
