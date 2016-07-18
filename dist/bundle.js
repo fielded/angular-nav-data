@@ -1,1 +1,757 @@
-!function(e){"use strict";function t(e,t){return t={exports:{}},e(t,t.exports),t.exports}e="default"in e?e.default:e,!function(e){e="default"in e?e.default:e;var t={};t.classCallCheck=function(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")},t.createClass=function(){function e(e,t){for(var a=0;a<t.length;a++){var n=t[a];n.enumerable=n.enumerable||!1,n.configurable=!0,"value"in n&&(n.writable=!0),Object.defineProperty(e,n.key,n)}}return function(t,a,n){return a&&e(t.prototype,a),n&&e(t,n),t}}();var a=function(e,t){var a=function(e){var t={key:e,isOptional:!1},a=e.split("?");return""===a[0]&&(t.key=a[1],t.isOptional=!0),t};return e.split(t).map(a)},n=function(){function e(a){t.classCallCheck(this,e);try{this.separator=a.get("ngSmartIdSeparator")}catch(e){this.separator=":"}try{this.patterns=a.get("ngSmartIdPatterns")}catch(e){this.patterns={}}}return t.createClass(e,[{key:"parse",value:function(e,t){var n=e.split(this.separator),i=void 0,r=n.reduce(function(e,t){return i?(e[i]=t,i=void 0):i=t,e},{});if(t){t=this.patterns[t]||t;var s=a(t,this.separator);s.forEach(function(e){if(!r[e.key]&&!e.isOptional)throw new Error("could not parse the id, non optional field "+e.key+" missing")})}return r}},{key:"idify",value:function(e,t){var n=this,i=function(e){return"undefined"!=typeof e&&null!==e&&""!==e};t=this.patterns[t]||t;var r=a(t,this.separator);return r.reduce(function(t,a){var r=e[a.key];if(r&&i(r))return t+(t.length?n.separator+a.key:a.key)+n.separator+r;if(!a.isOptional)throw new Error("could not generate id, missing field "+a.key);return t},"")}}]),e}();n.$inject=["$injector"],e.module("ngSmartId",[]).service("smartId",n)}(angular);var a=(t(function(e,t){"undefined"!=typeof e&&"undefined"!=typeof t&&e.exports===t&&(e.exports="pouchdb"),function(e,t,a){t.module("pouchdb",[]).constant("POUCHDB_METHODS",{destroy:"qify",put:"qify",post:"qify",get:"qify",remove:"qify",bulkDocs:"qify",bulkGet:"qify",allDocs:"qify",putAttachment:"qify",getAttachment:"qify",removeAttachment:"qify",query:"qify",viewCleanup:"qify",info:"qify",compact:"qify",revsDiff:"qify",changes:"eventEmitter",sync:"eventEmitter",replicate:{to:"eventEmitter",from:"eventEmitter"}}).service("pouchDBDecorators",["$q",function(e){this.qify=function(t){return function(){return e.when(t.apply(this,arguments))}},this.eventEmitter=function(t){return function(){var a=e.defer(),n=t.apply(this,arguments).on("change",function(e){return a.notify({change:e})}).on("paused",function(e){return a.notify({paused:e})}).on("active",function(e){return a.notify({active:e})}).on("denied",function(e){return a.notify({denied:e})}).on("complete",function(e){return a.resolve(e)}).on("error",function(e){return a.reject(e)});return n.$promise=a.promise,n}}}]).provider("pouchDB",["POUCHDB_METHODS",function(e){var a=this;a.methods=e,a.$get=["$window","pouchDBDecorators",function(e,n){function i(e,a,r){for(var s in a){var c=a[s];t.isString(c)?(c=n[c],r?e[r][s]=c(e[r][s]):e[s]=c(e[s])):i(e,c,s)}return e}return function(t,n){var r=new e.PouchDB(t,n);return i(r,a.methods)}}]}])}(window,window.angular)}),function(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}),n=function(){function e(e,t){for(var a=0;a<t.length;a++){var n=t[a];n.enumerable=n.enumerable||!1,n.configurable=!0,"value"in n&&(n.writable=!0),Object.defineProperty(e,n.key,n)}}return function(t,a,n){return a&&e(t.prototype,a),n&&e(t,n),t}}(),i=function(e,t){e.then(t)},r=function(){function e(t,n,i){a(this,e);var r=void 0;try{r=t.get("dataModuleRemoteDB")}catch(e){throw new Error("dataModuleRemoteDB should be provided in the data module configuration")}this.pouchDB=n,this.angularNavDataUtilsService=i,this.remoteDB=this.pouchDB(r),this.replicationFrom,this.localDB,this.registeredOnReplicationCompleteCallbackIds=[],this.callbacksPendingRegistration=[]}return n(e,[{key:"startReplication",value:function(e,t){var a={filter:"locations/by-level",query_params:{zone:e}};for(t&&(a.query_params.state=t),this.localDB=this.pouchDB("navIntLocationsDB"),this.replicationFrom=this.localDB.replicate.from(this.remoteDB,a);this.callbacksPendingRegistration.length;){var n=this.callbacksPendingRegistration.shift();i(this.replicationFrom,n)}}},{key:"callOnReplicationComplete",value:function(e,t){this.registeredOnReplicationCompleteCallbackIds.indexOf(e)===-1&&(this.registeredOnReplicationCompleteCallbackIds.push(e),this.replicationFrom?i(this.replicationFrom,t):this.callbacksPendingRegistration.push(t))}},{key:"allDocs",value:function(e){var t=this.localDB||this.remoteDB;return this.angularNavDataUtilsService.allDocs(t,e)}},{key:"query",value:function(e,t){var a=this.localDB||this.remoteDB;return this.angularNavDataUtilsService.query(a,e,t)}},{key:"get",value:function(e){var t=this.localDB||this.remoteDB;return t.get(e)}}]),e}();r.$inject=["$injector","pouchDB","angularNavDataUtilsService"];var s=function(){function e(t,n,i,r,s,c){a(this,e),this.cachedLgasByState={},this.defaultZone,this.defaultState,this.registeredOnCacheUpdatedCallbacks={},this.$q=t,this.smartId=n,this.locationsService=i,this.statesService=r,this.productListService=s,this.utils=c;var o=this.bustCache.bind(this);this.locationsService.callOnReplicationComplete("lgas-service",o)}return n(e,[{key:"registerOnCacheUpdatedCallback",value:function(e,t){this.registeredOnCacheUpdatedCallbacks[e]||(this.registeredOnCacheUpdatedCallbacks[e]=t)}},{key:"unregisterOnCacheUpdatedCallback",value:function(e){delete this.registeredOnCacheUpdatedCallbacks[e]}},{key:"bustCache",value:function(){this.byState({bustCache:!0}),this.setDefaultStateRelevantProducts()}},{key:"setDefaultStateRelevantProducts",value:function(){var e=this,t=function(t){e.productListService.setRelevant(t.products)},a="configuration:"+this.smartId.idify({zone:this.defaultZone,state:this.defaultState},"zone:state");this.locationsService.get(a).then(t)}},{key:"queryAndUpdateCache",value:function(e){var t=this,a=function(e){return e.id=t.smartId.parse(e._id).lga,e},n=function(e){var a={include_docs:!0,ascending:!0};return e.zone&&e.state?(a.startkey="zone:"+e.zone+":state:"+e.state+":",a.endkey="zone:"+e.zone+":state:"+e.state+":￿",t.locationsService.allDocs(a)):(a.key="lga",t.locationsService.query("locations/by-level",a))},i=function(e,n){var i=n.map(a);e?t.cachedLgasByState[e]=i:t.cachedLgasByState=i,t.utils.isIndexedCacheEmpty(t.cachedLgasByState,e)||t.utils.callEach(t.registeredOnCacheUpdatedCallbacks)};return n(e).then(i.bind(null,e.state))}},{key:"byState",value:function(){var e=this,t=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],a=function(e){return e.id},n=function(){var n=angular.copy(e.cachedLgasByState);return t.onlyIds&&Object.keys(n).forEach(function(e){n[e]=n[e].map(a)}),t.zone&&t.state&&(n=n[t.state]),t.asArray&&(n=e.utils.toArray(n)),n};return t.zone=t.zone||this.defaultZone,t.state=t.state||this.defaultState,t.bustCache||this.utils.isIndexedCacheEmpty(this.cachedLgasByState,t.state)?this.queryAndUpdateCache(t).then(n):this.$q.when(n())}},{key:"idsByState",value:function(){var e=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return e.onlyIds=!0,this.byState(e)}},{key:"list",value:function(){var e=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return e.asArray=!0,this.byState(e)}},{key:"setState",value:function(e,t){this.defaultZone=e,this.defaultState=t,this.statesService.setZone(this.defaultZone),this.bustCache()}},{key:"get",value:function(e){var t=function(t){var a=!0,n=!1,i=void 0;try{for(var r,s=t[Symbol.iterator]();!(a=(r=s.next()).done);a=!0){var c=r.value;if(c._id===e)return c}}catch(e){n=!0,i=e}finally{try{!a&&s.return&&s.return()}finally{if(n)throw i}}},a=this.smartId.parse(e).state,n=this.smartId.parse(e).zone;return this.byState({zone:n,state:a}).then(t)}}]),e}();s.$inject=["$q","smartId","locationsService","statesService","productListService","angularNavDataUtilsService"];var c=function(){function e(t,n,i,r){a(this,e),this.cachedStatesByZone={},this.defaultZone,this.registeredOnCacheUpdatedCallbacks={},this.$q=t,this.smartId=n,this.locationsService=i,this.utils=r;var s=this.byZone.bind(this,{bustCache:!0});this.locationsService.callOnReplicationComplete("states-service",s)}return n(e,[{key:"registerOnCacheUpdatedCallback",value:function(e,t){this.registeredOnCacheUpdatedCallbacks[e]||(this.registeredOnCacheUpdatedCallbacks[e]=t)}},{key:"unregisterOnCacheUpdatedCallback",value:function(e){delete this.registeredOnCacheUpdatedCallbacks[e]}},{key:"queryAndUpdateCache",value:function(e){var t=this,a=function(e){return e.id=t.smartId.parse(e._id).state,e},n=function(e){var a={include_docs:!0,ascending:!0};return e.zone?(a.startkey="zone:"+e.zone+":",a.endkey="zone:"+e.zone+":￿",t.locationsService.allDocs(a)):(a.key="state",t.locationsService.query("locations/by-level",a))},i=function(e,n){var i=n.map(a);e?t.cachedStatesByZone[e]=i:t.cachedStatesByZone=i,t.utils.isIndexedCacheEmpty(t.cachedStatesByZone,e)||t.utils.callEach(t.registeredOnCacheUpdatedCallbacks)};return n(e).then(i.bind(null,e.zone))}},{key:"byZone",value:function(){var e=this,t=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],a=function(e){return e.id},n=function(){var n=angular.copy(e.cachedStatesByZone);return t.onlyIds&&Object.keys(n).forEach(function(e){n[e]=n[e].map(a)}),t.zone&&(n=n[t.zone]),t.asArray&&(n=e.utils.toArray(n)),n};return t.zone=t.zone||this.defaultZone,t.bustCache||this.utils.isIndexedCacheEmpty(this.cachedStatesByZone,t.zone)?this.queryAndUpdateCache(t).then(n):this.$q.when(n())}},{key:"idsByZone",value:function(){var e=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return e.onlyIds=!0,this.byZone(e)}},{key:"list",value:function(){var e=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return e.asArray=!0,this.byZone(e)}},{key:"setZone",value:function(e){this.defaultZone=e,this.byZone({bustCache:!0})}},{key:"get",value:function(e){var t=function(t){var a=!0,n=!1,i=void 0;try{for(var r,s=t[Symbol.iterator]();!(a=(r=s.next()).done);a=!0){var c=r.value;if(c._id===e)return c}}catch(e){n=!0,i=e}finally{try{!a&&s.return&&s.return()}finally{if(n)throw i}}},a=this.smartId.parse(e).zone;return this.byZone({zone:a}).then(t)}}]),e}();c.$inject=["$q","smartId","locationsService","angularNavDataUtilsService"];var o=function(e){return e.doc},l=function(e){return"undefined"!=typeof e},u=function(e){return e.rows.map(o).filter(l)},h=function(){function e(){a(this,e)}return n(e,[{key:"allDocs",value:function(e,t){return e.allDocs(t).then(u)}},{key:"query",value:function(e,t,a){return e.query(t,a).then(u)}},{key:"callEach",value:function(e){var t=function(t){return e[t]()};Object.keys(e).forEach(t)}},{key:"isEmptyObject",value:function(e){return!Object.keys(e).length}},{key:"isIndexedCacheEmpty",value:function(e,t){var a=this.isEmptyObject(e);return!a&&t?!e[t]||!e[t].length:a}},{key:"toArray",value:function(e){return Object.keys(e).reduce(function(t,a){return t.concat(e[a])},[])}}]),e}(),d="angularNavData.utils";e.module(d,[]).service("angularNavDataUtilsService",h);var v="angularNavData.locations";e.module(v,[d,"ngSmartId","pouchdb"]).service("locationsService",r).service("lgasService",s).service("statesService",c);var f=function(e,t){e.then(t)},y=function(){function e(t,n,i){a(this,e);var r=void 0;try{r=t.get("dataModuleRemoteDB")}catch(e){throw new Error("dataModuleRemoteDB should be provided in the data module configuration")}this.pouchDB=n,this.angularNavDataUtilsService=i,this.remoteDB=this.pouchDB(r),this.replicationFrom,this.localDB,this.registeredOnReplicationCompleteCallbackIds=[],this.callbacksPendingRegistration=[]}return n(e,[{key:"startReplication",value:function(e,t){var a={filter:"products/all"};for(this.localDB=this.pouchDB("navIntProductsDB"),this.replicationFrom=this.localDB.replicate.from(this.remoteDB,a);this.callbacksPendingRegistration.length;){var n=this.callbacksPendingRegistration.shift();f(this.replicationFrom,n)}}},{key:"callOnReplicationComplete",value:function(e,t){this.registeredOnReplicationCompleteCallbackIds.indexOf(e)===-1&&(this.registeredOnReplicationCompleteCallbackIds.push(e),this.replicationFrom?f(this.replicationFrom,t):this.callbacksPendingRegistration.push(t))}},{key:"allDocs",value:function(e){var t=this.localDB||this.remoteDB;return this.angularNavDataUtilsService.allDocs(t,e)}}]),e}();y.$inject=["$injector","pouchDB","angularNavDataUtilsService"];var p=function(){function e(t,n,i){a(this,e),this.cachedProducts=[],this.relevantIds=[],this.registeredOnCacheUpdatedCallbacks={},this.$q=t,this.productsService=n,this.utils=i;var r=this.relevant.bind(this,{bustCache:!0});this.productsService.callOnReplicationComplete("products-list-service",r)}return n(e,[{key:"registerOnCacheUpdatedCallback",value:function(e,t){this.registeredOnCacheUpdatedCallbacks[e]||(this.registeredOnCacheUpdatedCallbacks[e]=t)}},{key:"unregisterOnCacheUpdatedCallback",value:function(e){delete this.registeredOnCacheUpdatedCallbacks[e]}},{key:"queryAndUpdateCache",value:function(){var e=this,t=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],a=function(t){var a={include_docs:!0};if(t.onlyRelevant){if(!e.relevantIds.length)return e.$q.when([]);a.keys=e.relevantIds}else a.ascending=!0,a.startkey="product:",a.endkey="product:￿";return e.productsService.allDocs(a)},n=function(t){e.cachedProducts=t,e.cachedProducts.length&&e.utils.callEach(e.registeredOnCacheUpdatedCallbacks)};return a(t).then(n)}},{key:"relevant",value:function(){var e=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return e.onlyRelevant=!0,this.all(e)}},{key:"all",value:function(){var e=this,t=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],a=function(e,t){return t.storageType===e},n=function(){return t.byType?{dry:e.cachedProducts.filter(a.bind(null,"dry")),frozen:e.cachedProducts.filter(a.bind(null,"frozen"))}:e.cachedProducts};return this.cachedProducts.length&&!t.bustCache?this.$q.when(n()):this.queryAndUpdateCache(t).then(n)}},{key:"setRelevant",value:function(e){this.relevantIds=e,this.relevant({bustCache:!0})}}]),e}();p.$inject=["$q","productsService","angularNavDataUtilsService"];var g="angularNavData.products";e.module(g,[d,"pouchdb"]).service("productsService",y).service("productListService",p),e.module("angularNavData",[v,g])}(angular);
+(function (angular$1) {
+  'use strict';
+
+  angular$1 = 'default' in angular$1 ? angular$1['default'] : angular$1;
+
+  var classCallCheck = function (instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  };
+
+  var createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+    }
+
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
+
+  var registerCallback = function registerCallback(replicationFrom, callback) {
+    replicationFrom.then(callback);
+  };
+
+  var LocationsService = function () {
+    function LocationsService($injector, pouchDB, angularNavDataUtilsService) {
+      classCallCheck(this, LocationsService);
+
+      var dataModuleRemoteDB = void 0;
+
+      try {
+        dataModuleRemoteDB = $injector.get('dataModuleRemoteDB');
+      } catch (e) {
+        throw new Error('dataModuleRemoteDB should be provided in the data module configuration');
+      }
+
+      this.pouchDB = pouchDB;
+      this.angularNavDataUtilsService = angularNavDataUtilsService;
+
+      this.remoteDB = this.pouchDB(dataModuleRemoteDB);
+      this.replicationFrom;
+      this.localDB;
+      this.registeredOnReplicationCompleteCallbackIds = [];
+      this.callbacksPendingRegistration = [];
+    }
+
+    createClass(LocationsService, [{
+      key: 'startReplication',
+      value: function startReplication(zone, state) {
+        var options = {
+          filter: 'locations/by-level',
+          query_params: {
+            zone: zone
+          }
+        };
+
+        if (state) {
+          options.query_params.state = state;
+        }
+
+        this.localDB = this.pouchDB('navIntLocationsDB');
+        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+
+        while (this.callbacksPendingRegistration.length) {
+          var callback = this.callbacksPendingRegistration.shift();
+          registerCallback(this.replicationFrom, callback);
+        }
+      }
+    }, {
+      key: 'callOnReplicationComplete',
+      value: function callOnReplicationComplete(callbackId, callback) {
+        if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
+          this.registeredOnReplicationCompleteCallbackIds.push(callbackId);
+          if (this.replicationFrom) {
+            registerCallback(this.replicationFrom, callback);
+          } else {
+            // in case the registration happens before starting the replication
+            this.callbacksPendingRegistration.push(callback);
+          }
+        }
+      }
+    }, {
+      key: 'allDocs',
+      value: function allDocs(options) {
+        var db = this.localDB || this.remoteDB;
+        return this.angularNavDataUtilsService.allDocs(db, options);
+      }
+    }, {
+      key: 'query',
+      value: function query(view, options) {
+        var db = this.localDB || this.remoteDB;
+        return this.angularNavDataUtilsService.query(db, view, options);
+      }
+    }, {
+      key: 'get',
+      value: function get(id) {
+        var db = this.localDB || this.remoteDB;
+        return db.get(id);
+      }
+    }]);
+    return LocationsService;
+  }();
+
+  LocationsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
+
+  var LgasService = function () {
+    function LgasService($q, smartId, locationsService, statesService, productListService, angularNavDataUtilsService) {
+      classCallCheck(this, LgasService);
+
+      this.cachedLgasByState = {};
+      this.defaultZone;
+      this.defaultState;
+      this.registeredOnCacheUpdatedCallbacks = {};
+
+      this.$q = $q;
+      this.smartId = smartId;
+      this.locationsService = locationsService;
+      this.statesService = statesService;
+      this.productListService = productListService;
+      this.utils = angularNavDataUtilsService;
+
+      // For the state dashboard:
+      // locations are replicated and the zone and state are set by default
+      // with `setState`
+      var onReplicationComplete = this.bustCache.bind(this);
+      this.locationsService.callOnReplicationComplete('lgas-service', onReplicationComplete);
+    }
+
+    createClass(LgasService, [{
+      key: 'registerOnCacheUpdatedCallback',
+      value: function registerOnCacheUpdatedCallback(id, callback) {
+        if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+          this.registeredOnCacheUpdatedCallbacks[id] = callback;
+        }
+      }
+    }, {
+      key: 'unregisterOnCacheUpdatedCallback',
+      value: function unregisterOnCacheUpdatedCallback(id) {
+        delete this.registeredOnCacheUpdatedCallbacks[id];
+      }
+    }, {
+      key: 'bustCache',
+      value: function bustCache() {
+        this.byState({ bustCache: true });
+        this.setDefaultStateRelevantProducts();
+      }
+    }, {
+      key: 'setDefaultStateRelevantProducts',
+      value: function setDefaultStateRelevantProducts() {
+        var _this = this;
+
+        var setRelevantProducts = function setRelevantProducts(stateConfig) {
+          _this.productListService.setRelevant(stateConfig.products);
+        };
+
+        var configId = 'configuration:' + this.smartId.idify({ zone: this.defaultZone, state: this.defaultState }, 'zone:state');
+        this.locationsService.get(configId).then(setRelevantProducts);
+      }
+    }, {
+      key: 'queryAndUpdateCache',
+      value: function queryAndUpdateCache(options) {
+        var _this2 = this;
+
+        var addId = function addId(lga) {
+          lga.id = _this2.smartId.parse(lga._id).lga;
+          return lga;
+        };
+
+        var query = function query(options) {
+          var queryOptions = {
+            'include_docs': true,
+            ascending: true
+          };
+
+          // For state dashboard (querying local PouchDB) prefer the more
+          // performant `allDocs` instead of a view
+          if (options.zone && options.state) {
+            queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':';
+            queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':￿';
+
+            return _this2.locationsService.allDocs(queryOptions);
+          }
+
+          // For national dashboard
+          queryOptions.key = 'lga';
+          return _this2.locationsService.query('locations/by-level', queryOptions);
+        };
+
+        var updateCache = function updateCache(state, docs) {
+          var withIds = docs.map(addId);
+          if (state) {
+            _this2.cachedLgasByState[state] = withIds;
+          } else {
+            _this2.cachedLgasByState = withIds;
+          }
+          // This makes the assumption that the cache only contains an empty list
+          // of lgas when the replication is not yet done
+          if (!_this2.utils.isIndexedCacheEmpty(_this2.cachedLgasByState, state)) {
+            _this2.utils.callEach(_this2.registeredOnCacheUpdatedCallbacks);
+          }
+        };
+
+        return query(options).then(updateCache.bind(null, options.state));
+      }
+    }, {
+      key: 'byState',
+      value: function byState() {
+        var _this3 = this;
+
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        var onlyId = function onlyId(doc) {
+          return doc.id;
+        };
+
+        var prepareRes = function prepareRes() {
+          var res = angular.copy(_this3.cachedLgasByState);
+
+          if (options.onlyIds) {
+            Object.keys(res).forEach(function (key) {
+              res[key] = res[key].map(onlyId);
+            });
+          }
+
+          if (options.zone && options.state) {
+            res = res[options.state];
+          }
+
+          if (options.asArray) {
+            res = _this3.utils.toArray(res);
+          }
+
+          return res;
+        };
+
+        options.zone = options.zone || this.defaultZone;
+        options.state = options.state || this.defaultState;
+
+        if (!options.bustCache && !this.utils.isIndexedCacheEmpty(this.cachedLgasByState, options.state)) {
+          return this.$q.when(prepareRes());
+        }
+
+        return this.queryAndUpdateCache(options).then(prepareRes);
+      }
+    }, {
+      key: 'idsByState',
+      value: function idsByState() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.onlyIds = true;
+        return this.byState(options);
+      }
+    }, {
+      key: 'list',
+      value: function list() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.asArray = true;
+        return this.byState(options);
+      }
+    }, {
+      key: 'setState',
+      value: function setState(zone, state) {
+        this.defaultZone = zone;
+        this.defaultState = state;
+        this.statesService.setZone(this.defaultZone);
+        this.bustCache();
+      }
+    }, {
+      key: 'get',
+      value: function get(lgaId) {
+        var findLga = function findLga(lgas) {
+          var _iteratorNormalCompletion = true;
+          var _didIteratorError = false;
+          var _iteratorError = undefined;
+
+          try {
+            for (var _iterator = lgas[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+              var lga = _step.value;
+
+              if (lga._id === lgaId) {
+                return lga;
+              }
+            }
+          } catch (err) {
+            _didIteratorError = true;
+            _iteratorError = err;
+          } finally {
+            try {
+              if (!_iteratorNormalCompletion && _iterator.return) {
+                _iterator.return();
+              }
+            } finally {
+              if (_didIteratorError) {
+                throw _iteratorError;
+              }
+            }
+          }
+        };
+
+        var state = this.smartId.parse(lgaId).state;
+        var zone = this.smartId.parse(lgaId).zone;
+        return this.byState({ zone: zone, state: state }).then(findLga);
+      }
+    }]);
+    return LgasService;
+  }();
+
+  LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService', 'angularNavDataUtilsService'];
+
+  var StatesService = function () {
+    function StatesService($q, smartId, locationsService, angularNavDataUtilsService) {
+      classCallCheck(this, StatesService);
+
+      this.cachedStatesByZone = {};
+      this.defaultZone;
+      this.registeredOnCacheUpdatedCallbacks = {};
+
+      this.$q = $q;
+      this.smartId = smartId;
+      this.locationsService = locationsService;
+      this.utils = angularNavDataUtilsService;
+
+      // For the state dashboard:
+      // locations are replicated and the zone and state are set by default
+      var onReplicationComplete = this.byZone.bind(this, { bustCache: true });
+      this.locationsService.callOnReplicationComplete('states-service', onReplicationComplete);
+    }
+
+    createClass(StatesService, [{
+      key: 'registerOnCacheUpdatedCallback',
+      value: function registerOnCacheUpdatedCallback(id, callback) {
+        if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+          this.registeredOnCacheUpdatedCallbacks[id] = callback;
+        }
+      }
+    }, {
+      key: 'unregisterOnCacheUpdatedCallback',
+      value: function unregisterOnCacheUpdatedCallback(id) {
+        delete this.registeredOnCacheUpdatedCallbacks[id];
+      }
+    }, {
+      key: 'queryAndUpdateCache',
+      value: function queryAndUpdateCache(options) {
+        var _this = this;
+
+        var addId = function addId(state) {
+          state.id = _this.smartId.parse(state._id).state;
+          return state;
+        };
+
+        var query = function query(options) {
+          var queryOptions = {
+            'include_docs': true,
+            ascending: true
+          };
+
+          // For state dashboard (querying local PouchDB) prefer the more
+          // performant `allDocs` instead of a view
+          if (options.zone) {
+            queryOptions.startkey = 'zone:' + options.zone + ':';
+            queryOptions.endkey = 'zone:' + options.zone + ':￿';
+
+            return _this.locationsService.allDocs(queryOptions);
+          }
+
+          // For national dashboard
+          queryOptions.key = 'state';
+          return _this.locationsService.query('locations/by-level', queryOptions);
+        };
+
+        var updateCache = function updateCache(zone, docs) {
+          var withIds = docs.map(addId);
+          if (zone) {
+            _this.cachedStatesByZone[zone] = withIds;
+          } else {
+            _this.cachedStatesByZone = withIds;
+          }
+          // This makes the assumption that the cache only contains an empty list
+          // of states when the replication is not yet done
+          if (!_this.utils.isIndexedCacheEmpty(_this.cachedStatesByZone, zone)) {
+            _this.utils.callEach(_this.registeredOnCacheUpdatedCallbacks);
+          }
+        };
+
+        return query(options).then(updateCache.bind(null, options.zone));
+      }
+    }, {
+      key: 'byZone',
+      value: function byZone() {
+        var _this2 = this;
+
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        var onlyId = function onlyId(doc) {
+          return doc.id;
+        };
+
+        var prepareRes = function prepareRes() {
+          var res = angular.copy(_this2.cachedStatesByZone);
+
+          if (options.onlyIds) {
+            Object.keys(res).forEach(function (key) {
+              res[key] = res[key].map(onlyId);
+            });
+          }
+
+          if (options.zone) {
+            res = res[options.zone];
+          }
+
+          if (options.asArray) {
+            res = _this2.utils.toArray(res);
+          }
+
+          return res;
+        };
+
+        options.zone = options.zone || this.defaultZone;
+
+        if (!options.bustCache && !this.utils.isIndexedCacheEmpty(this.cachedStatesByZone, options.zone)) {
+          return this.$q.when(prepareRes());
+        }
+
+        return this.queryAndUpdateCache(options).then(prepareRes);
+      }
+    }, {
+      key: 'idsByZone',
+      value: function idsByZone() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.onlyIds = true;
+        return this.byZone(options);
+      }
+    }, {
+      key: 'list',
+      value: function list() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.asArray = true;
+        return this.byZone(options);
+      }
+    }, {
+      key: 'setZone',
+      value: function setZone(zone) {
+        this.defaultZone = zone;
+        this.byZone({ bustCache: true });
+      }
+    }, {
+      key: 'get',
+      value: function get(stateId) {
+        // Why is this not working?
+        // const findState = (states) => states.find(state => (state._id === stateId))
+
+        var findState = function findState(states) {
+          var _iteratorNormalCompletion = true;
+          var _didIteratorError = false;
+          var _iteratorError = undefined;
+
+          try {
+            for (var _iterator = states[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+              var state = _step.value;
+
+              if (state._id === stateId) {
+                return state;
+              }
+            }
+          } catch (err) {
+            _didIteratorError = true;
+            _iteratorError = err;
+          } finally {
+            try {
+              if (!_iteratorNormalCompletion && _iterator.return) {
+                _iterator.return();
+              }
+            } finally {
+              if (_didIteratorError) {
+                throw _iteratorError;
+              }
+            }
+          }
+        };
+
+        var zone = this.smartId.parse(stateId).zone;
+        return this.byZone({ zone: zone }).then(findState);
+      }
+    }]);
+    return StatesService;
+  }();
+
+  StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
+
+  var pluckDocs = function pluckDocs(item) {
+    return item.doc;
+  };
+
+  var isDefined = function isDefined(doc) {
+    return typeof doc !== 'undefined';
+  };
+
+  var parseResponse = function parseResponse(response) {
+    return response.rows.map(pluckDocs).filter(isDefined);
+  };
+
+  var UtilsService = function () {
+    function UtilsService() {
+      classCallCheck(this, UtilsService);
+    }
+
+    createClass(UtilsService, [{
+      key: 'allDocs',
+      value: function allDocs(db, options) {
+        return db.allDocs(options).then(parseResponse);
+      }
+    }, {
+      key: 'query',
+      value: function query(db, view, options) {
+        return db.query(view, options).then(parseResponse);
+      }
+    }, {
+      key: 'callEach',
+      value: function callEach(callbacks) {
+        var call = function call(id) {
+          return callbacks[id]();
+        };
+        Object.keys(callbacks).forEach(call);
+      }
+    }, {
+      key: 'isEmptyObject',
+      value: function isEmptyObject(obj) {
+        return !Object.keys(obj).length;
+      }
+    }, {
+      key: 'isIndexedCacheEmpty',
+      value: function isIndexedCacheEmpty(cache, field) {
+        var isCompletelyEmpty = this.isEmptyObject(cache);
+
+        if (!isCompletelyEmpty && field) {
+          return !cache[field] || !cache[field].length;
+        }
+        return isCompletelyEmpty;
+      }
+    }, {
+      key: 'toArray',
+      value: function toArray(obj) {
+        return Object.keys(obj).reduce(function (array, key) {
+          return array.concat(obj[key]);
+        }, []);
+      }
+    }]);
+    return UtilsService;
+  }();
+
+  var moduleName$1 = 'angularNavData.utils';
+
+  angular$1.module(moduleName$1, []).service('angularNavDataUtilsService', UtilsService);
+
+  var moduleName = 'angularNavData.locations';
+
+  angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService);
+
+  var registerCallback$1 = function registerCallback(replicationFrom, callback) {
+    replicationFrom.then(callback);
+  };
+
+  var ProductsService = function () {
+    function ProductsService($injector, pouchDB, angularNavDataUtilsService) {
+      classCallCheck(this, ProductsService);
+
+      var dataModuleRemoteDB = void 0;
+
+      try {
+        dataModuleRemoteDB = $injector.get('dataModuleRemoteDB');
+      } catch (e) {
+        throw new Error('dataModuleRemoteDB should be provided in the data module configuration');
+      }
+
+      this.pouchDB = pouchDB;
+      this.angularNavDataUtilsService = angularNavDataUtilsService;
+
+      this.remoteDB = this.pouchDB(dataModuleRemoteDB);
+      this.replicationFrom;
+      this.localDB;
+      this.registeredOnReplicationCompleteCallbackIds = [];
+      this.callbacksPendingRegistration = [];
+    }
+
+    createClass(ProductsService, [{
+      key: 'startReplication',
+      value: function startReplication(zone, state) {
+        var options = {
+          filter: 'products/all'
+        };
+
+        this.localDB = this.pouchDB('navIntProductsDB');
+        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+
+        while (this.callbacksPendingRegistration.length) {
+          var callback = this.callbacksPendingRegistration.shift();
+          registerCallback$1(this.replicationFrom, callback);
+        }
+      }
+    }, {
+      key: 'callOnReplicationComplete',
+      value: function callOnReplicationComplete(callbackId, callback) {
+        if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
+          this.registeredOnReplicationCompleteCallbackIds.push(callbackId);
+          if (this.replicationFrom) {
+            registerCallback$1(this.replicationFrom, callback);
+          } else {
+            // in case the registration happens before starting the replication
+            this.callbacksPendingRegistration.push(callback);
+          }
+        }
+      }
+    }, {
+      key: 'allDocs',
+      value: function allDocs(options) {
+        var db = this.localDB || this.remoteDB;
+        return this.angularNavDataUtilsService.allDocs(db, options);
+      }
+    }]);
+    return ProductsService;
+  }();
+
+  ProductsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
+
+  var ProductListService = function () {
+    function ProductListService($q, productsService, angularNavDataUtilsService) {
+      classCallCheck(this, ProductListService);
+
+      this.cachedProducts = [];
+      this.relevantIds = [];
+      this.registeredOnCacheUpdatedCallbacks = {};
+
+      this.$q = $q;
+      this.productsService = productsService;
+      this.utils = angularNavDataUtilsService;
+
+      // For state dashboard: products replicated locally and only a set of products is relevant
+      var onReplicationComplete = this.relevant.bind(this, { bustCache: true });
+      this.productsService.callOnReplicationComplete('products-list-service', onReplicationComplete);
+    }
+
+    createClass(ProductListService, [{
+      key: 'registerOnCacheUpdatedCallback',
+      value: function registerOnCacheUpdatedCallback(id, callback) {
+        if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+          this.registeredOnCacheUpdatedCallbacks[id] = callback;
+        }
+      }
+    }, {
+      key: 'unregisterOnCacheUpdatedCallback',
+      value: function unregisterOnCacheUpdatedCallback(id) {
+        delete this.registeredOnCacheUpdatedCallbacks[id];
+      }
+    }, {
+      key: 'queryAndUpdateCache',
+      value: function queryAndUpdateCache() {
+        var _this = this;
+
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        var query = function query(options) {
+          var queryOptions = {
+            'include_docs': true
+          };
+
+          if (options.onlyRelevant) {
+            if (!_this.relevantIds.length) {
+              // no product is relevant
+              return _this.$q.when([]);
+            }
+            queryOptions.keys = _this.relevantIds;
+          } else {
+            queryOptions.ascending = true;
+            queryOptions.startkey = 'product:';
+            queryOptions.endkey = 'product:' + '￿';
+          }
+
+          return _this.productsService.allDocs(queryOptions);
+        };
+
+        var updateCache = function updateCache(docs) {
+          _this.cachedProducts = docs;
+          // This makes the assumption that the cache only contains an empty list
+          // of products when the replication is not yet done
+          if (_this.cachedProducts.length) {
+            _this.utils.callEach(_this.registeredOnCacheUpdatedCallbacks);
+          }
+        };
+
+        return query(options).then(updateCache);
+      }
+    }, {
+      key: 'relevant',
+      value: function relevant() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.onlyRelevant = true;
+        return this.all(options);
+      }
+    }, {
+      key: 'all',
+      value: function all() {
+        var _this2 = this;
+
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        var byType = function byType(type, product) {
+          return product.storageType === type;
+        };
+
+        var prepareRes = function prepareRes() {
+          if (options.byType) {
+            return {
+              dry: _this2.cachedProducts.filter(byType.bind(null, 'dry')),
+              frozen: _this2.cachedProducts.filter(byType.bind(null, 'frozen'))
+            };
+          }
+          return _this2.cachedProducts;
+        };
+
+        if (this.cachedProducts.length && !options.bustCache) {
+          return this.$q.when(prepareRes());
+        }
+
+        return this.queryAndUpdateCache(options).then(prepareRes);
+      }
+    }, {
+      key: 'setRelevant',
+      value: function setRelevant(relevantIds) {
+        this.relevantIds = relevantIds;
+        this.relevant({ bustCache: true });
+      }
+    }]);
+    return ProductListService;
+  }();
+
+  ProductListService.$inject = ['$q', 'productsService', 'angularNavDataUtilsService'];
+
+  var moduleName$2 = 'angularNavData.products';
+
+  angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productListService', ProductListService);
+
+  angular$1.module('angularNavData', [moduleName, moduleName$2]);
+
+}(angular));
