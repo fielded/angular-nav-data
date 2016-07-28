@@ -499,6 +499,133 @@
 
   StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
 
+  var ZonesService = function () {
+    function ZonesService($q, smartId, locationsService, angularNavDataUtilsService) {
+      classCallCheck(this, ZonesService);
+
+      this.cachedZones = [];
+      this.$q = $q;
+      this.smartId = smartId;
+      this.locationsService = locationsService;
+      this.utils = angularNavDataUtilsService;
+    }
+
+    createClass(ZonesService, [{
+      key: 'queryAndUpdateCache',
+      value: function queryAndUpdateCache(options) {
+        var _this = this;
+
+        var addId = function addId(zone) {
+          zone.id = _this.smartId.parse(zone._id).zone;
+          return zone;
+        };
+
+        var query = function query(options) {
+          var queryOptions = {
+            'include_docs': true,
+            ascending: true,
+            key: 'zone'
+          };
+
+          return _this.locationsService.query('locations/by-level', queryOptions);
+        };
+
+        var updateCache = function updateCache(docs) {
+          var withIds = docs.map(addId);
+          _this.cachedZones = withIds;
+        };
+
+        return query(options).then(updateCache);
+      }
+    }, {
+      key: 'all',
+      value: function all() {
+        var _this2 = this;
+
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        var onlyId = function onlyId(doc) {
+          return doc.id;
+        };
+
+        var prepareRes = function prepareRes() {
+          var res = angular.copy(_this2.cachedZones);
+
+          if (options.onlyIds) {
+            Object.keys(res).forEach(function (key) {
+              res[key] = res[key].map(onlyId);
+            });
+          }
+
+          if (options.asArray) {
+            res = _this2.utils.toArray(res);
+          }
+
+          return res;
+        };
+
+        if (!options.bustCache && this.cachedZones.length) {
+          return this.$q.when(prepareRes());
+        }
+
+        return this.queryAndUpdateCache(options).then(prepareRes);
+      }
+    }, {
+      key: 'ids',
+      value: function ids() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.onlyIds = true;
+        return this.all(options);
+      }
+    }, {
+      key: 'list',
+      value: function list() {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        options.asArray = true;
+        return this.all(options);
+      }
+    }, {
+      key: 'get',
+      value: function get(zoneId) {
+        var findZone = function findZone(zones) {
+          var _iteratorNormalCompletion = true;
+          var _didIteratorError = false;
+          var _iteratorError = undefined;
+
+          try {
+            for (var _iterator = zones[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+              var zone = _step.value;
+
+              if (zone._id === zoneId) {
+                return zone;
+              }
+            }
+          } catch (err) {
+            _didIteratorError = true;
+            _iteratorError = err;
+          } finally {
+            try {
+              if (!_iteratorNormalCompletion && _iterator.return) {
+                _iterator.return();
+              }
+            } finally {
+              if (_didIteratorError) {
+                throw _iteratorError;
+              }
+            }
+          }
+        };
+
+        return this.all().then(findZone);
+      }
+    }]);
+    return ZonesService;
+  }();
+
+  ZonesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
+
   var pluckDocs = function pluckDocs(item) {
     return item.doc;
   };
@@ -566,7 +693,7 @@
 
   var moduleName = 'angularNavData.locations';
 
-  angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService);
+  angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService).service('zonesService', ZonesService);
 
   var registerCallback$1 = function registerCallback(replicationFrom, callback) {
     replicationFrom.then(callback);
