@@ -38,6 +38,8 @@ class LocationsService {
 
     Object.keys(this.onReplicationCompleteCallbacks)
       .forEach((id) => registerCallback(this.replicationFrom, this.onReplicationCompleteCallbacks[id]))
+
+    return this.replicationFrom
   }
 
   callOnReplicationComplete (id, callback) {
