@@ -74,6 +74,8 @@
         Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
           return registerCallback(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
         });
+
+        return this.replicationFrom;
       }
     }, {
       key: 'callOnReplicationComplete',
@@ -733,6 +735,8 @@
         Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
           return registerCallback$1(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
         });
+
+        return this.replicationFrom;
       }
     }, {
       key: 'callOnReplicationComplete',
