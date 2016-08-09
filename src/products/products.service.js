@@ -18,8 +18,7 @@ class ProductsService {
     this.remoteDB = this.pouchDB(dataModuleRemoteDB)
     this.replicationFrom
     this.localDB
-    this.registeredOnReplicationCompleteCallbackIds = []
-    this.callbacksPendingRegistration = []
+    this.onReplicationCompleteCallbacks = {}
   }
 
   startReplication (zone, state) {
@@ -30,20 +29,17 @@ class ProductsService {
     this.localDB = this.pouchDB('navIntProductsDB')
     this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
 
-    while (this.callbacksPendingRegistration.length) {
-      let callback = this.callbacksPendingRegistration.shift()
-      registerCallback(this.replicationFrom, callback)
-    }
+    Object.keys(this.onReplicationCompleteCallbacks)
+      .forEach((id) => registerCallback(this.replicationFrom, this.onReplicationCompleteCallbacks[id]))
   }
 
-  callOnReplicationComplete (callbackId, callback) {
-    if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
-      this.registeredOnReplicationCompleteCallbackIds.push(callbackId)
-      if (this.replicationFrom) {
-        registerCallback(this.replicationFrom, callback)
-      } else { // in case the registration happens before starting the replication
-        this.callbacksPendingRegistration.push(callback)
-      }
+  callOnReplicationComplete (id, callback) {
+    if (this.onReplicationCompleteCallbacks[id]) {
+      return
+    }
+    this.onReplicationCompleteCallbacks[id] = callback
+    if (this.replicationFrom) {
+      registerCallback(this.replicationFrom, callback)
     }
   }
 
