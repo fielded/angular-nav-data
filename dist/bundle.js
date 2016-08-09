@@ -49,13 +49,14 @@
       this.remoteDB = this.pouchDB(dataModuleRemoteDB);
       this.replicationFrom;
       this.localDB;
-      this.registeredOnReplicationCompleteCallbackIds = [];
-      this.callbacksPendingRegistration = [];
+      this.onReplicationCompleteCallbacks = {};
     }
 
     createClass(LocationsService, [{
       key: 'startReplication',
       value: function startReplication(zone, state) {
+        var _this = this;
+
         var options = {
           filter: 'locations/by-level',
           query_params: {
@@ -70,22 +71,19 @@
         this.localDB = this.pouchDB('navIntLocationsDB');
         this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-        while (this.callbacksPendingRegistration.length) {
-          var callback = this.callbacksPendingRegistration.shift();
-          registerCallback(this.replicationFrom, callback);
-        }
+        Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
+          return registerCallback(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
+        });
       }
     }, {
       key: 'callOnReplicationComplete',
-      value: function callOnReplicationComplete(callbackId, callback) {
-        if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
-          this.registeredOnReplicationCompleteCallbackIds.push(callbackId);
-          if (this.replicationFrom) {
-            registerCallback(this.replicationFrom, callback);
-          } else {
-            // in case the registration happens before starting the replication
-            this.callbacksPendingRegistration.push(callback);
-          }
+      value: function callOnReplicationComplete(id, callback) {
+        if (this.onReplicationCompleteCallbacks[id]) {
+          return;
+        }
+        this.onReplicationCompleteCallbacks[id] = callback;
+        if (this.replicationFrom) {
+          registerCallback(this.replicationFrom, callback);
         }
       }
     }, {
@@ -717,13 +715,14 @@
       this.remoteDB = this.pouchDB(dataModuleRemoteDB);
       this.replicationFrom;
       this.localDB;
-      this.registeredOnReplicationCompleteCallbackIds = [];
-      this.callbacksPendingRegistration = [];
+      this.onReplicationCompleteCallbacks = {};
     }
 
     createClass(ProductsService, [{
       key: 'startReplication',
       value: function startReplication(zone, state) {
+        var _this = this;
+
         var options = {
           filter: 'products/all'
         };
@@ -731,22 +730,19 @@
         this.localDB = this.pouchDB('navIntProductsDB');
         this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-        while (this.callbacksPendingRegistration.length) {
-          var callback = this.callbacksPendingRegistration.shift();
-          registerCallback$1(this.replicationFrom, callback);
-        }
+        Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
+          return registerCallback$1(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
+        });
       }
     }, {
       key: 'callOnReplicationComplete',
-      value: function callOnReplicationComplete(callbackId, callback) {
-        if (this.registeredOnReplicationCompleteCallbackIds.indexOf(callbackId) === -1) {
-          this.registeredOnReplicationCompleteCallbackIds.push(callbackId);
-          if (this.replicationFrom) {
-            registerCallback$1(this.replicationFrom, callback);
-          } else {
-            // in case the registration happens before starting the replication
-            this.callbacksPendingRegistration.push(callback);
-          }
+      value: function callOnReplicationComplete(id, callback) {
+        if (this.onReplicationCompleteCallbacks[id]) {
+          return;
+        }
+        this.onReplicationCompleteCallbacks[id] = callback;
+        if (this.replicationFrom) {
+          registerCallback$1(this.replicationFrom, callback);
         }
       }
     }, {
