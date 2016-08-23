@@ -12,7 +12,11 @@ const parseResponse = (response) => {
           .filter(isDefined)
 }
 
-export default class UtilsService {
+class UtilsService {
+  constructor (smartId) {
+    this.smartId = smartId
+  }
+
   allDocs (db, options) {
     return db.allDocs(options)
             .then(parseResponse)
@@ -46,4 +50,17 @@ export default class UtilsService {
       return array.concat(obj[key])
     }, [])
   }
+
+  groupByLevel (locations, level) {
+    return locations.reduce((index, location) => {
+      const area = this.smartId.parse(location._id)[level]
+      index[area] = index[area] || []
+      index[area].push(location)
+      return index
+    }, {})
+  }
 }
+
+UtilsService.$inject = ['smartId']
+
+export default UtilsService
