@@ -76,7 +76,7 @@ class LgasService {
       if (state) {
         this.cachedLgasByState[state] = withIds
       } else {
-        this.cachedLgasByState = withIds
+        this.cachedLgasByState = this.utils.groupByLevel(withIds, 'state')
       }
       // This makes the assumption that the cache only contains an empty list
       // of lgas when the replication is not yet done

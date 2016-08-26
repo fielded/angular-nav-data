@@ -1,10 +1,9 @@
 class ZonesService {
-  constructor ($q, smartId, locationsService, angularNavDataUtilsService) {
+  constructor ($q, smartId, locationsService) {
     this.cachedZones = []
     this.$q = $q
     this.smartId = smartId
     this.locationsService = locationsService
-    this.utils = angularNavDataUtilsService
   }
 
   queryAndUpdateCache (options) {
@@ -44,10 +43,6 @@ class ZonesService {
         })
       }
 
-      if (options.asArray) {
-        res = this.utils.toArray(res)
-      }
-
       return res
     }
 
@@ -65,7 +60,6 @@ class ZonesService {
   }
 
   list (options = {}) {
-    options.asArray = true
     return this.all(options)
   }
 
@@ -82,6 +76,6 @@ class ZonesService {
   }
 }
 
-ZonesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService']
+ZonesService.$inject = ['$q', 'smartId', 'locationsService']
 
 export default ZonesService

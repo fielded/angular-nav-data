@@ -200,7 +200,7 @@
           if (state) {
             _this2.cachedLgasByState[state] = withIds;
           } else {
-            _this2.cachedLgasByState = withIds;
+            _this2.cachedLgasByState = _this2.utils.groupByLevel(withIds, 'state');
           }
           // This makes the assumption that the cache only contains an empty list
           // of lgas when the replication is not yet done
@@ -383,7 +383,7 @@
           if (zone) {
             _this.cachedStatesByZone[zone] = withIds;
           } else {
-            _this.cachedStatesByZone = withIds;
+            _this.cachedStatesByZone = _this.utils.groupByLevel(withIds, 'zone');
           }
           // This makes the assumption that the cache only contains an empty list
           // of states when the replication is not yet done
@@ -500,14 +500,13 @@
   StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
 
   var ZonesService = function () {
-    function ZonesService($q, smartId, locationsService, angularNavDataUtilsService) {
+    function ZonesService($q, smartId, locationsService) {
       classCallCheck(this, ZonesService);
 
       this.cachedZones = [];
       this.$q = $q;
       this.smartId = smartId;
       this.locationsService = locationsService;
-      this.utils = angularNavDataUtilsService;
     }
 
     createClass(ZonesService, [{
@@ -557,10 +556,6 @@
             });
           }
 
-          if (options.asArray) {
-            res = _this2.utils.toArray(res);
-          }
-
           return res;
         };
 
@@ -583,7 +578,6 @@
       value: function list() {
         var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
 
-        options.asArray = true;
         return this.all(options);
       }
     }, {
@@ -624,7 +618,7 @@
     return ZonesService;
   }();
 
-  ZonesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
+  ZonesService.$inject = ['$q', 'smartId', 'locationsService'];
 
   var pluckDocs = function pluckDocs(item) {
     return item.doc;
@@ -639,8 +633,10 @@
   };
 
   var UtilsService = function () {
-    function UtilsService() {
+    function UtilsService(smartId) {
       classCallCheck(this, UtilsService);
+
+      this.smartId = smartId;
     }
 
     createClass(UtilsService, [{
@@ -683,13 +679,27 @@
           return array.concat(obj[key]);
         }, []);
       }
+    }, {
+      key: 'groupByLevel',
+      value: function groupByLevel(locations, level) {
+        var _this = this;
+
+        return locations.reduce(function (index, location) {
+          var area = _this.smartId.parse(location._id)[level];
+          index[area] = index[area] || [];
+          index[area].push(location);
+          return index;
+        }, {});
+      }
     }]);
     return UtilsService;
   }();
 
+  UtilsService.$inject = ['smartId'];
+
   var moduleName$1 = 'angularNavData.utils';
 
-  angular$1.module(moduleName$1, []).service('angularNavDataUtilsService', UtilsService);
+  angular$1.module(moduleName$1, ['ngSmartId']).service('angularNavDataUtilsService', UtilsService);
 
   var moduleName = 'angularNavData.locations';
 

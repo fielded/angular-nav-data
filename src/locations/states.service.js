@@ -56,7 +56,7 @@ class StatesService {
       if (zone) {
         this.cachedStatesByZone[zone] = withIds
       } else {
-        this.cachedStatesByZone = withIds
+        this.cachedStatesByZone = this.utils.groupByLevel(withIds, 'zone')
       }
       // This makes the assumption that the cache only contains an empty list
       // of states when the replication is not yet done
