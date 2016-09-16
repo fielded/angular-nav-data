@@ -21,7 +21,7 @@ class ProductsService {
     this.onReplicationCompleteCallbacks = {}
   }
 
-  startReplication (zone, state) {
+  startReplication () {
     var options = {
       filter: 'products/all'
     }
