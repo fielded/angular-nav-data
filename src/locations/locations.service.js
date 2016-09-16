@@ -22,6 +22,11 @@ class LocationsService {
   }
 
   startReplication (zone, state) {
+    const retry = () => {
+      this.replicationFrom = null
+      return this.startReplication(zone, state)
+    }
+
     var options = {
       filter: 'locations/by-level',
       query_params: {
@@ -45,6 +50,7 @@ class LocationsService {
     }
 
     return this.replicationFrom
+      .catch(retry)
   }
 
   callOnReplicationComplete (id, callback) {
