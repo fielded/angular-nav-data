@@ -26,8 +26,10 @@ class ProductsService {
       filter: 'products/all'
     }
 
-    this.localDB = this.pouchDB('navIntProductsDB')
     this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
+    if (!this.localDB) {
+      this.localDB = this.pouchDB('navIntProductsDB')
+    }
 
     Object.keys(this.onReplicationCompleteCallbacks)
       .forEach((id) => registerCallback(this.replicationFrom, this.onReplicationCompleteCallbacks[id]))
