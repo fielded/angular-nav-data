@@ -3,6 +3,29 @@
 
   angular$1 = 'default' in angular$1 ? angular$1['default'] : angular$1;
 
+  function __commonjs(fn, module) { return module = { exports: {} }, fn(module, module.exports), module.exports; }
+
+  var index = __commonjs(function (module, exports) {
+  exports.bulkForceInsert = function (localDB, remoteDB, id) {
+    var opts = {
+      include_docs: true,
+      startkey: id,
+      endkey: id + "￿"
+    };
+    return remoteDB.allDocs(opts).then(function (res) {
+      return res.rows.map(function (row) {
+        return row.doc;
+      });
+    }).then(function (docs) {
+      return localDB.bulkDocs(docs, {
+        new_edits: false
+      });
+    });
+  };
+  });
+
+  var bulkForceInsert = index.bulkForceInsert;
+
   var classCallCheck = function (instance, Constructor) {
     if (!(instance instanceof Constructor)) {
       throw new TypeError("Cannot call a class as a function");
@@ -57,25 +80,18 @@
       value: function startReplication(zone, state) {
         var _this = this;
 
-        var options = {
-          filter: 'locations/by-level',
-          query_params: {
-            zone: zone
-          }
-        };
-
+        var locationId = 'zone:' + zone;
         if (state) {
-          options.query_params.state = state;
+          locationId += ':state:' + state;
         }
+        var configurationId = 'configuration:' + locationId;
 
+        // Why do we do this here and not in the constructor?
         this.localDB = this.pouchDB('navIntLocationsDB');
-        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-        Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
-          return registerCallback(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
+        return bulkForceInsert(this.localDB, this.remoteDB, locationId).then(function () {
+          return bulkForceInsert(_this.localDB, _this.remoteDB, configurationId);
         });
-
-        return this.replicationFrom;
       }
     }, {
       key: 'callOnReplicationComplete',
@@ -733,20 +749,8 @@
     createClass(ProductsService, [{
       key: 'startReplication',
       value: function startReplication(zone, state) {
-        var _this = this;
-
-        var options = {
-          filter: 'products/all'
-        };
-
         this.localDB = this.pouchDB('navIntProductsDB');
-        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
-
-        Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
-          return registerCallback$1(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
-        });
-
-        return this.replicationFrom;
+        return bulkForceInsert(this.localDB, this.remoteDB, 'product:');
       }
     }, {
       key: 'callOnReplicationComplete',

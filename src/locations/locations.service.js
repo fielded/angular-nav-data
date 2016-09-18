@@ -1,3 +1,5 @@
+import { bulkForceInsert } from '../utils'
+
 const registerCallback = (replicationFrom, callback) => {
   replicationFrom.then(callback)
 }
@@ -22,24 +24,17 @@ class LocationsService {
   }
 
   startReplication (zone, state) {
-    var options = {
-      filter: 'locations/by-level',
-      query_params: {
-        zone: zone
-      }
-    }
-
+    let locationId = `zone:${zone}`
     if (state) {
-      options.query_params.state = state
+      locationId += `:state:${state}`
     }
+    const configurationId = `configuration:${locationId}`
 
+    // Why do we do this here and not in the constructor?
     this.localDB = this.pouchDB('navIntLocationsDB')
-    this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
 
-    Object.keys(this.onReplicationCompleteCallbacks)
-      .forEach((id) => registerCallback(this.replicationFrom, this.onReplicationCompleteCallbacks[id]))
-
-    return this.replicationFrom
+    return bulkForceInsert(this.localDB, this.remoteDB, locationId)
+      .then(() => bulkForceInsert(this.localDB, this.remoteDB, configurationId))
   }
 
   callOnReplicationComplete (id, callback) {
