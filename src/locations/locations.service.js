@@ -11,7 +11,8 @@ class LocationsService {
     const pouchDBOptions = {
       ajax: {
         timeout: replicationConfig.timeout
-      }
+      },
+      skip_setup: true
     }
 
     try {
