@@ -6,6 +6,10 @@ class ProductsService {
   constructor ($injector, pouchDB, angularNavDataUtilsService) {
     let dataModuleRemoteDB
 
+    const pouchDBOptions = {
+      ajax: {timeout: 180000}
+    }
+
     try {
       dataModuleRemoteDB = $injector.get('dataModuleRemoteDB')
     } catch (e) {
@@ -15,7 +19,7 @@ class ProductsService {
     this.pouchDB = pouchDB
     this.angularNavDataUtilsService = angularNavDataUtilsService
 
-    this.remoteDB = this.pouchDB(dataModuleRemoteDB)
+    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions)
     this.replicationFrom
     this.localDB
     this.onReplicationCompleteCallbacks = {}
