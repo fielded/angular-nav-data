@@ -31,6 +31,11 @@ class ProductsService {
   }
 
   startReplication () {
+    const retry = () => {
+      this.replicationFrom = null
+      return this.startReplication()
+    }
+
     var options = {
       filter: 'products/all'
     }
@@ -47,6 +52,7 @@ class ProductsService {
     }
 
     return this.replicationFrom
+      .catch(retry)
   }
 
   callOnReplicationComplete (id, callback) {

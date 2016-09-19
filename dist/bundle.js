@@ -57,6 +57,11 @@
       value: function startReplication(zone, state) {
         var _this = this;
 
+        var retry = function retry() {
+          _this.replicationFrom = null;
+          return _this.startReplication(zone, state);
+        };
+
         var options = {
           filter: 'locations/by-level',
           query_params: {
@@ -68,14 +73,19 @@
           options.query_params.state = state;
         }
 
-        this.localDB = this.pouchDB('navIntLocationsDB');
-        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+        if (!this.localDB) {
+          this.localDB = this.pouchDB('navIntLocationsDB');
+        }
 
-        Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
-          return registerCallback(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
-        });
+        if (!this.replicationFrom) {
+          this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-        return this.replicationFrom;
+          Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
+            return registerCallback(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
+          });
+        }
+
+        return this.replicationFrom.catch(retry);
       }
     }, {
       key: 'callOnReplicationComplete',
@@ -732,21 +742,31 @@
 
     createClass(ProductsService, [{
       key: 'startReplication',
-      value: function startReplication(zone, state) {
+      value: function startReplication() {
         var _this = this;
+
+        var retry = function retry() {
+          _this.replicationFrom = null;
+          return _this.startReplication();
+        };
 
         var options = {
           filter: 'products/all'
         };
 
-        this.localDB = this.pouchDB('navIntProductsDB');
-        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+        if (!this.localDB) {
+          this.localDB = this.pouchDB('navIntProductsDB');
+        }
 
-        Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
-          return registerCallback$1(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
-        });
+        if (!this.replicationFrom) {
+          this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-        return this.replicationFrom;
+          Object.keys(this.onReplicationCompleteCallbacks).forEach(function (id) {
+            return registerCallback$1(_this.replicationFrom, _this.onReplicationCompleteCallbacks[id]);
+          });
+        }
+
+        return this.replicationFrom.catch(retry);
       }
     }, {
       key: 'callOnReplicationComplete',
