@@ -1,3 +1,5 @@
+import { replication as replicationConfig } from '../config.json'
+
 const registerCallback = (replicationFrom, callback) => {
   replicationFrom.then(callback)
 }
@@ -7,7 +9,9 @@ class ProductsService {
     let dataModuleRemoteDB
 
     const pouchDBOptions = {
-      ajax: {timeout: 180000}
+      ajax: {
+        timeout: replicationConfig.timeout
+      }
     }
 
     try {

@@ -1,3 +1,5 @@
+import { replication as replicationConfig } from '../config.json'
+
 const registerCallback = (replicationFrom, callback) => {
   replicationFrom.then(callback)
 }
@@ -8,7 +10,7 @@ class LocationsService {
 
     const pouchDBOptions = {
       ajax: {
-        timeout: 180000
+        timeout: replicationConfig.timeout
       }
     }
 
