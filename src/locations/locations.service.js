@@ -1,9 +1,5 @@
 import { replication as replicationConfig } from '../config.json'
 
-const registerCallback = (replicationFrom, callback) => {
-  replicationFrom.then(callback)
-}
-
 class LocationsService {
   constructor ($injector, pouchDB, angularNavDataUtilsService) {
     let dataModuleRemoteDB
@@ -31,11 +27,25 @@ class LocationsService {
   }
 
   startReplication (zone, state) {
+    const onReplicationComplete = () => {
+      Object.keys(this.onReplicationCompleteCallbacks)
+        .forEach((id) => this.onReplicationCompleteCallbacks[id]())
+    }
+
+    const onReplicationPaused = (err) => {
+      if (!err) {
+        onReplicationComplete()
+        this.stopReplication()
+      }
+    }
+
     var options = {
       filter: 'locations/by-level',
       query_params: {
         zone: zone
-      }
+      },
+      live: true,
+      retry: true
     }
 
     if (state) {
@@ -49,11 +59,15 @@ class LocationsService {
     if (!this.replicationFrom) {
       this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
 
-      Object.keys(this.onReplicationCompleteCallbacks)
-        .forEach((id) => registerCallback(this.replicationFrom, this.onReplicationCompleteCallbacks[id]))
+      this.replicationFrom
+        .on('paused', onReplicationPaused)
     }
+  }
 
-    return this.replicationFrom
+  stopReplication () {
+    if (this.replicationFrom && this.replicationFrom.cancel) {
+      this.replicationFrom.cancel()
+    }
   }
 
   callOnReplicationComplete (id, callback) {
@@ -61,9 +75,6 @@ class LocationsService {
       return
     }
     this.onReplicationCompleteCallbacks[id] = callback
-    if (this.replicationFrom) {
-      registerCallback(this.replicationFrom, callback)
-    }
   }
 
   allDocs (options) {
