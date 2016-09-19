@@ -1,3 +1,5 @@
+import { replication as replicationConfig } from '../config.json'
+
 const registerCallback = (replicationFrom, callback) => {
   replicationFrom.then(callback)
 }
@@ -5,6 +7,12 @@ const registerCallback = (replicationFrom, callback) => {
 class LocationsService {
   constructor ($injector, pouchDB, angularNavDataUtilsService) {
     let dataModuleRemoteDB
+
+    const pouchDBOptions = {
+      ajax: {
+        timeout: replicationConfig.timeout
+      }
+    }
 
     try {
       dataModuleRemoteDB = $injector.get('dataModuleRemoteDB')
@@ -15,7 +23,7 @@ class LocationsService {
     this.pouchDB = pouchDB
     this.angularNavDataUtilsService = angularNavDataUtilsService
 
-    this.remoteDB = this.pouchDB(dataModuleRemoteDB)
+    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions)
     this.replicationFrom
     this.localDB
     this.onReplicationCompleteCallbacks = {}

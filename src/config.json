@@ -1,0 +1,5 @@
+{
+  "replication": {
+    "timeout": 180000
+  }
+}
