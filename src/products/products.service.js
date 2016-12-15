@@ -1,4 +1,5 @@
 import { replication as replicationConfig } from '../config.json'
+import { default as utilService } from '../utils/utils.service'
 
 class ProductsService {
   constructor ($injector, pouchDB, angularNavDataUtilsService) {
@@ -55,6 +56,7 @@ class ProductsService {
       this.replicationFrom
         .on('paused', onReplicationPaused)
     }
+    this.localDB.changes({conflicts: true, onChange: utilService.checkAndResolveConflicts.bind(null, this.localDB)})
   }
 
   stopReplication () {

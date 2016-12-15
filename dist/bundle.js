@@ -5,33 +5,13 @@
 
 	var replicationConfig = { "timeout": 180000 };
 
-	var classCallCheck = function (instance, Constructor) {
-	  if (!(instance instanceof Constructor)) {
-	    throw new TypeError("Cannot call a class as a function");
-	  }
-	};
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-	var createClass = function () {
-	  function defineProperties(target, props) {
-	    for (var i = 0; i < props.length; i++) {
-	      var descriptor = props[i];
-	      descriptor.enumerable = descriptor.enumerable || false;
-	      descriptor.configurable = true;
-	      if ("value" in descriptor) descriptor.writable = true;
-	      Object.defineProperty(target, descriptor.key, descriptor);
-	    }
-	  }
-
-	  return function (Constructor, protoProps, staticProps) {
-	    if (protoProps) defineProperties(Constructor.prototype, protoProps);
-	    if (staticProps) defineProperties(Constructor, staticProps);
-	    return Constructor;
-	  };
-	}();
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var LocationsService = function () {
 	  function LocationsService($injector, pouchDB, angularNavDataUtilsService) {
-	    classCallCheck(this, LocationsService);
+	    _classCallCheck(this, LocationsService);
 
 	    var dataModuleRemoteDB = void 0;
 
@@ -57,7 +37,7 @@
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
-	  createClass(LocationsService, [{
+	  _createClass(LocationsService, [{
 	    key: 'startReplication',
 	    value: function startReplication(zone, state) {
 	      var _this = this;
@@ -88,12 +68,15 @@
 	        options.query_params.state = state;
 	      }
 
-	      this.localDB = this.pouchDB('navIntLocationsDB');
-	      this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+	      if (!this.localDB) {
+	        this.localDB = this.pouchDB('navIntLocationsDB');
+	      }
 
-	      this.replicationFrom.on('paused', onReplicationPaused);
+	      if (!this.replicationFrom) {
+	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-	      return this.replicationFrom;
+	        this.replicationFrom.on('paused', onReplicationPaused);
+	      }
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -129,14 +112,19 @@
 	      return db.get(id);
 	    }
 	  }]);
+
 	  return LocationsService;
 	}();
 
 	LocationsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
 
+	var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 	var LgasService = function () {
 	  function LgasService($q, smartId, locationsService, statesService, productListService, angularNavDataUtilsService) {
-	    classCallCheck(this, LgasService);
+	    _classCallCheck$1(this, LgasService);
 
 	    this.cachedLgasByState = {};
 	    this.defaultZone;
@@ -157,7 +145,7 @@
 	    this.locationsService.callOnReplicationComplete('lgas-service', onReplicationComplete);
 	  }
 
-	  createClass(LgasService, [{
+	  _createClass$1(LgasService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -207,7 +195,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone && options.state) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':￿';
+	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':\uFFFF';
 
 	          return _this2.locationsService.allDocs(queryOptions);
 	        }
@@ -238,7 +226,7 @@
 	    value: function byState() {
 	      var _this3 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var onlyId = function onlyId(doc) {
 	        return doc.id;
@@ -276,7 +264,7 @@
 	  }, {
 	    key: 'idsByState',
 	    value: function idsByState() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyIds = true;
 	      return this.byState(options);
@@ -284,7 +272,7 @@
 	  }, {
 	    key: 'list',
 	    value: function list() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.asArray = true;
 	      return this.byState(options);
@@ -334,14 +322,19 @@
 	      return this.byState({ zone: zone, state: state }).then(findLga);
 	    }
 	  }]);
+
 	  return LgasService;
 	}();
 
 	LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService', 'angularNavDataUtilsService'];
 
+	var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 	var StatesService = function () {
 	  function StatesService($q, smartId, locationsService, angularNavDataUtilsService) {
-	    classCallCheck(this, StatesService);
+	    _classCallCheck$2(this, StatesService);
 
 	    this.cachedStatesByZone = {};
 	    this.defaultZone;
@@ -358,7 +351,7 @@
 	    this.locationsService.callOnReplicationComplete('states-service', onReplicationComplete);
 	  }
 
-	  createClass(StatesService, [{
+	  _createClass$2(StatesService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -390,7 +383,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':￿';
+	          queryOptions.endkey = 'zone:' + options.zone + ':\uFFFF';
 
 	          return _this.locationsService.allDocs(queryOptions);
 	        }
@@ -421,7 +414,7 @@
 	    value: function byZone() {
 	      var _this2 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var onlyId = function onlyId(doc) {
 	        return doc.id;
@@ -458,7 +451,7 @@
 	  }, {
 	    key: 'idsByZone',
 	    value: function idsByZone() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyIds = true;
 	      return this.byZone(options);
@@ -466,7 +459,7 @@
 	  }, {
 	    key: 'list',
 	    value: function list() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.asArray = true;
 	      return this.byZone(options);
@@ -516,14 +509,19 @@
 	      return this.byZone({ zone: zone }).then(findState);
 	    }
 	  }]);
+
 	  return StatesService;
 	}();
 
 	StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
 
+	var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 	var ZonesService = function () {
 	  function ZonesService($q, smartId, locationsService) {
-	    classCallCheck(this, ZonesService);
+	    _classCallCheck$3(this, ZonesService);
 
 	    this.cachedZones = [];
 	    this.$q = $q;
@@ -531,7 +529,7 @@
 	    this.locationsService = locationsService;
 	  }
 
-	  createClass(ZonesService, [{
+	  _createClass$3(ZonesService, [{
 	    key: 'queryAndUpdateCache',
 	    value: function queryAndUpdateCache(options) {
 	      var _this = this;
@@ -563,7 +561,7 @@
 	    value: function all() {
 	      var _this2 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var onlyId = function onlyId(doc) {
 	        return doc.id;
@@ -590,7 +588,7 @@
 	  }, {
 	    key: 'ids',
 	    value: function ids() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyIds = true;
 	      return this.all(options);
@@ -598,7 +596,7 @@
 	  }, {
 	    key: 'list',
 	    value: function list() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      return this.all(options);
 	    }
@@ -637,10 +635,15 @@
 	      return this.all().then(findZone);
 	    }
 	  }]);
+
 	  return ZonesService;
 	}();
 
 	ZonesService.$inject = ['$q', 'smartId', 'locationsService'];
+
+	var _createClass$4 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$4(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var pluckDocs = function pluckDocs(item) {
 	  return item.doc;
@@ -656,12 +659,12 @@
 
 	var UtilsService = function () {
 	  function UtilsService(smartId) {
-	    classCallCheck(this, UtilsService);
+	    _classCallCheck$4(this, UtilsService);
 
 	    this.smartId = smartId;
 	  }
 
-	  createClass(UtilsService, [{
+	  _createClass$4(UtilsService, [{
 	    key: 'allDocs',
 	    value: function allDocs(db, options) {
 	      return db.allDocs(options).then(parseResponse);
@@ -713,7 +716,49 @@
 	        return index;
 	      }, {});
 	    }
+	  }, {
+	    key: 'checkAndResolveConflicts',
+	    value: function checkAndResolveConflicts(changedDoc, pouchdb) {
+	      var preferredRevision = {};
+	      if (!changedDoc._conflicts) {
+	        return;
+	      }
+
+	      if (!changedDoc.updatedAt) {
+	        preferredRevision = changedDoc;
+	        changedDoc._conflicts.map(function (conflictingRev) {
+	          if (conflictingRev.updatedAt) {
+	            preferredRevision = conflictingRev;
+	          } else {
+	            pouchdb.remove(changedDoc._id, conflictingRev._rev);
+	          }
+	        });
+	      } else {
+	        var serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, 'updatedAt');
+	        preferredRevision = serializedRevisions.pop();
+	        serializedRevisions.forEach(function (revision) {
+	          pouchdb.remove(changedDoc._id, revision);
+	        });
+	      }
+	      pouchdb.put(preferredRevision); // do we still need to PUT after plucking conflicts?
+	    }
+	  }, {
+	    key: 'serialiseDocWithConflicts',
+	    value: function serialiseDocWithConflicts(Doc, prop) {
+	      var mainDoc = {};
+	      var serialisedDocs = [];
+	      Object.keys(Doc).map(function (prop) {
+	        if (prop === '_conflicts') {
+	          mainDoc[prop] = Doc[prop];
+	        }
+	      });
+	      serialisedDocs = [mainDoc].concat(Doc._conflicts).sort(function (a, b) {
+	        return a[prop] > b[prop];
+	      });
+	      return serialisedDocs;
+	    }
 	  }]);
+
 	  return UtilsService;
 	}();
 
@@ -727,9 +772,13 @@
 
 	angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService).service('zonesService', ZonesService);
 
+	var _createClass$5 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$5(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 	var ProductsService = function () {
 	  function ProductsService($injector, pouchDB, angularNavDataUtilsService) {
-	    classCallCheck(this, ProductsService);
+	    _classCallCheck$5(this, ProductsService);
 
 	    var dataModuleRemoteDB = void 0;
 
@@ -755,9 +804,9 @@
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
-	  createClass(ProductsService, [{
+	  _createClass$5(ProductsService, [{
 	    key: 'startReplication',
-	    value: function startReplication(zone, state) {
+	    value: function startReplication() {
 	      var _this = this;
 
 	      var onReplicationComplete = function onReplicationComplete() {
@@ -779,12 +828,16 @@
 	        retry: true
 	      };
 
-	      this.localDB = this.pouchDB('navIntProductsDB');
-	      this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+	      if (!this.localDB) {
+	        this.localDB = this.pouchDB('navIntProductsDB');
+	      }
 
-	      this.replicationFrom.on('paused', onReplicationPaused);
+	      if (!this.replicationFrom) {
+	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-	      return this.replicationFrom;
+	        this.replicationFrom.on('paused', onReplicationPaused);
+	      }
+	      this.localDB.changes({ conflicts: true, onChange: UtilsService.checkAndResolveConflicts.bind(null, this.localDB) });
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -808,14 +861,19 @@
 	      return this.angularNavDataUtilsService.allDocs(db, options);
 	    }
 	  }]);
+
 	  return ProductsService;
 	}();
 
 	ProductsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
 
+	var _createClass$6 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$6(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 	var ProductListService = function () {
 	  function ProductListService($q, productsService, angularNavDataUtilsService) {
-	    classCallCheck(this, ProductListService);
+	    _classCallCheck$6(this, ProductListService);
 
 	    this.cachedProducts = [];
 	    this.relevantIds = [];
@@ -830,7 +888,7 @@
 	    this.productsService.callOnReplicationComplete('products-list-service', onReplicationComplete);
 	  }
 
-	  createClass(ProductListService, [{
+	  _createClass$6(ProductListService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -847,7 +905,7 @@
 	    value: function queryAndUpdateCache() {
 	      var _this = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var query = function query(options) {
 	        var queryOptions = {
@@ -863,7 +921,7 @@
 	        } else {
 	          queryOptions.ascending = true;
 	          queryOptions.startkey = 'product:';
-	          queryOptions.endkey = 'product:' + '￿';
+	          queryOptions.endkey = 'product:' + '\uFFFF';
 	        }
 
 	        return _this.productsService.allDocs(queryOptions);
@@ -883,7 +941,7 @@
 	  }, {
 	    key: 'relevant',
 	    value: function relevant() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyRelevant = true;
 	      return this.all(options);
@@ -893,7 +951,7 @@
 	    value: function all() {
 	      var _this2 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var byType = function byType(type, product) {
 	        return product.storageType === type;
@@ -922,6 +980,7 @@
 	      this.relevant({ bustCache: true });
 	    }
 	  }]);
+
 	  return ProductListService;
 	}();
 

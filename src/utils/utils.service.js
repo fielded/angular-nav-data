@@ -59,6 +59,47 @@ class UtilsService {
       return index
     }, {})
   }
+
+  checkAndResolveConflicts (changedDoc, pouchdb) {
+    let preferredRevision = {}
+    if (!changedDoc._conflicts) {
+      return
+    }
+
+    if (!changedDoc.updatedAt) {
+      preferredRevision = changedDoc
+      changedDoc._conflicts.map((conflictingRev) => {
+        if (conflictingRev.updatedAt) {
+          preferredRevision = conflictingRev
+        } else {
+          pouchdb.remove(changedDoc._id, conflictingRev._rev)
+        }
+      })
+    } else {
+      let serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, 'updatedAt')
+      preferredRevision = serializedRevisions.pop()
+      serializedRevisions.forEach(revision => {
+        pouchdb.remove(changedDoc._id, revision)
+      })
+    }
+    pouchdb.put(preferredRevision) // do we still need to PUT after plucking conflicts?
+  }
+
+  serialiseDocWithConflicts (Doc, prop) {
+    let mainDoc = {}
+    let serialisedDocs = []
+    Object.keys(Doc).map((prop) => {
+      if (prop === '_conflicts') {
+        mainDoc[prop] = Doc[prop]
+      }
+    })
+    serialisedDocs = [mainDoc]
+      .concat(Doc._conflicts)
+      .sort((a, b) => {
+        return a[prop] > b[prop]
+      })
+    return serialisedDocs
+  }
 }
 
 UtilsService.$inject = ['smartId']
