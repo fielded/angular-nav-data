@@ -69,7 +69,7 @@ describe('locationsService', function () {
   })
 
   it('should handle conflicts', function (done) {
-    function assert() {
+    function assert () {
       return localDb.get('zone:foo', {
         conflicts: true
       })
