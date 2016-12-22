@@ -5,129 +5,6 @@
 
 	var replicationConfig = { "timeout": 180000 };
 
-	var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var pluckDocs = function pluckDocs(item) {
-	  return item.doc;
-	};
-
-	var isDefined = function isDefined(doc) {
-	  return typeof doc !== 'undefined';
-	};
-
-	var parseResponse = function parseResponse(response) {
-	  return response.rows.map(pluckDocs).filter(isDefined);
-	};
-
-	var UtilsService = function () {
-	  function UtilsService(smartId) {
-	    _classCallCheck$1(this, UtilsService);
-
-	    this.smartId = smartId;
-	  }
-
-	  _createClass$1(UtilsService, [{
-	    key: 'allDocs',
-	    value: function allDocs(db, options) {
-	      return db.allDocs(options).then(parseResponse);
-	    }
-	  }, {
-	    key: 'query',
-	    value: function query(db, view, options) {
-	      return db.query(view, options).then(parseResponse);
-	    }
-	  }, {
-	    key: 'callEach',
-	    value: function callEach(callbacks) {
-	      var call = function call(id) {
-	        return callbacks[id]();
-	      };
-	      Object.keys(callbacks).forEach(call);
-	    }
-	  }, {
-	    key: 'isEmptyObject',
-	    value: function isEmptyObject(obj) {
-	      return !Object.keys(obj).length;
-	    }
-	  }, {
-	    key: 'isIndexedCacheEmpty',
-	    value: function isIndexedCacheEmpty(cache, field) {
-	      var isCompletelyEmpty = this.isEmptyObject(cache);
-
-	      if (!isCompletelyEmpty && field) {
-	        return !cache[field] || !cache[field].length;
-	      }
-	      return isCompletelyEmpty;
-	    }
-	  }, {
-	    key: 'toArray',
-	    value: function toArray(obj) {
-	      return Object.keys(obj).reduce(function (array, key) {
-	        return array.concat(obj[key]);
-	      }, []);
-	    }
-	  }, {
-	    key: 'groupByLevel',
-	    value: function groupByLevel(locations, level) {
-	      var _this = this;
-
-	      return locations.reduce(function (index, location) {
-	        var area = _this.smartId.parse(location._id)[level];
-	        index[area] = index[area] || [];
-	        index[area].push(location);
-	        return index;
-	      }, {});
-	    }
-	  }, {
-	    key: 'checkAndResolveConflicts',
-	    value: function checkAndResolveConflicts(changedDoc, pouchdb) {
-	      var preferredRevision = {};
-	      if (!changedDoc._conflicts) {
-	        return;
-	      }
-
-	      if (!changedDoc.updatedAt) {
-	        preferredRevision = changedDoc;
-	        changedDoc._conflicts.map(function (conflictingRev) {
-	          if (conflictingRev.updatedAt) {
-	            preferredRevision = conflictingRev;
-	          } else {
-	            pouchdb.remove(changedDoc._id, conflictingRev._rev);
-	          }
-	        });
-	      } else {
-	        var serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, 'updatedAt');
-	        preferredRevision = serializedRevisions.pop();
-	        serializedRevisions.forEach(function (revision) {
-	          pouchdb.remove(changedDoc._id, revision);
-	        });
-	      }
-	      pouchdb.put(preferredRevision); // do we still need to PUT after plucking conflicts?
-	    }
-	  }, {
-	    key: 'serialiseDocWithConflicts',
-	    value: function serialiseDocWithConflicts(Doc, prop) {
-	      var mainDoc = {};
-	      var serialisedDocs = [];
-	      Object.keys(Doc).map(function (prop) {
-	        if (prop === '_conflicts') {
-	          mainDoc[prop] = Doc[prop];
-	        }
-	      });
-	      serialisedDocs = [mainDoc].concat(Doc._conflicts).sort(function (a, b) {
-	        return a[prop] > b[prop];
-	      });
-	      return serialisedDocs;
-	    }
-	  }]);
-
-	  return UtilsService;
-	}();
-
-	UtilsService.$inject = ['smartId'];
-
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -201,7 +78,7 @@
 	        this.replicationFrom.on('paused', onReplicationPaused);
 	      }
 
-	      this.localDB.changes({ conflicts: true, onChange: UtilsService.checkAndResolveConflicts.bind(null, this.localDB) });
+	      this.localDB.changes({ conflicts: true, onChange: this.angularNavDataUtilsService.checkAndResolveConflicts.bind(null, this.localDB) });
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -243,13 +120,13 @@
 
 	LocationsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
 
-	var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-	function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var LgasService = function () {
 	  function LgasService($q, smartId, locationsService, statesService, productListService, angularNavDataUtilsService) {
-	    _classCallCheck$2(this, LgasService);
+	    _classCallCheck$1(this, LgasService);
 
 	    this.cachedLgasByState = {};
 	    this.defaultZone;
@@ -270,7 +147,7 @@
 	    this.locationsService.callOnReplicationComplete('lgas-service', onReplicationComplete);
 	  }
 
-	  _createClass$2(LgasService, [{
+	  _createClass$1(LgasService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -320,7 +197,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone && options.state) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':\uFFFF';
+	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':￿';
 
 	          return _this2.locationsService.allDocs(queryOptions);
 	        }
@@ -453,13 +330,13 @@
 
 	LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService', 'angularNavDataUtilsService'];
 
-	var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-	function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var StatesService = function () {
 	  function StatesService($q, smartId, locationsService, angularNavDataUtilsService) {
-	    _classCallCheck$3(this, StatesService);
+	    _classCallCheck$2(this, StatesService);
 
 	    this.cachedStatesByZone = {};
 	    this.defaultZone;
@@ -476,7 +353,7 @@
 	    this.locationsService.callOnReplicationComplete('states-service', onReplicationComplete);
 	  }
 
-	  _createClass$3(StatesService, [{
+	  _createClass$2(StatesService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -508,7 +385,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':\uFFFF';
+	          queryOptions.endkey = 'zone:' + options.zone + ':￿';
 
 	          return _this.locationsService.allDocs(queryOptions);
 	        }
@@ -640,13 +517,13 @@
 
 	StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
 
-	var _createClass$4 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-	function _classCallCheck$4(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var ZonesService = function () {
 	  function ZonesService($q, smartId, locationsService) {
-	    _classCallCheck$4(this, ZonesService);
+	    _classCallCheck$3(this, ZonesService);
 
 	    this.cachedZones = [];
 	    this.$q = $q;
@@ -654,7 +531,7 @@
 	    this.locationsService = locationsService;
 	  }
 
-	  _createClass$4(ZonesService, [{
+	  _createClass$3(ZonesService, [{
 	    key: 'queryAndUpdateCache',
 	    value: function queryAndUpdateCache(options) {
 	      var _this = this;
@@ -765,6 +642,129 @@
 	}();
 
 	ZonesService.$inject = ['$q', 'smartId', 'locationsService'];
+
+	var _createClass$4 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck$4(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var pluckDocs = function pluckDocs(item) {
+	  return item.doc;
+	};
+
+	var isDefined = function isDefined(doc) {
+	  return typeof doc !== 'undefined';
+	};
+
+	var parseResponse = function parseResponse(response) {
+	  return response.rows.map(pluckDocs).filter(isDefined);
+	};
+
+	var UtilsService = function () {
+	  function UtilsService(smartId) {
+	    _classCallCheck$4(this, UtilsService);
+
+	    this.smartId = smartId;
+	  }
+
+	  _createClass$4(UtilsService, [{
+	    key: 'allDocs',
+	    value: function allDocs(db, options) {
+	      return db.allDocs(options).then(parseResponse);
+	    }
+	  }, {
+	    key: 'query',
+	    value: function query(db, view, options) {
+	      return db.query(view, options).then(parseResponse);
+	    }
+	  }, {
+	    key: 'callEach',
+	    value: function callEach(callbacks) {
+	      var call = function call(id) {
+	        return callbacks[id]();
+	      };
+	      Object.keys(callbacks).forEach(call);
+	    }
+	  }, {
+	    key: 'isEmptyObject',
+	    value: function isEmptyObject(obj) {
+	      return !Object.keys(obj).length;
+	    }
+	  }, {
+	    key: 'isIndexedCacheEmpty',
+	    value: function isIndexedCacheEmpty(cache, field) {
+	      var isCompletelyEmpty = this.isEmptyObject(cache);
+
+	      if (!isCompletelyEmpty && field) {
+	        return !cache[field] || !cache[field].length;
+	      }
+	      return isCompletelyEmpty;
+	    }
+	  }, {
+	    key: 'toArray',
+	    value: function toArray(obj) {
+	      return Object.keys(obj).reduce(function (array, key) {
+	        return array.concat(obj[key]);
+	      }, []);
+	    }
+	  }, {
+	    key: 'groupByLevel',
+	    value: function groupByLevel(locations, level) {
+	      var _this = this;
+
+	      return locations.reduce(function (index, location) {
+	        var area = _this.smartId.parse(location._id)[level];
+	        index[area] = index[area] || [];
+	        index[area].push(location);
+	        return index;
+	      }, {});
+	    }
+	  }, {
+	    key: 'checkAndResolveConflicts',
+	    value: function checkAndResolveConflicts(changedDoc, pouchdb) {
+	      var preferredRevision = {};
+	      if (!changedDoc._conflicts) {
+	        return;
+	      }
+
+	      if (!changedDoc.updatedAt) {
+	        preferredRevision = changedDoc;
+	        changedDoc._conflicts.map(function (conflictingRev) {
+	          if (conflictingRev.updatedAt) {
+	            preferredRevision = conflictingRev;
+	          } else {
+	            pouchdb.remove(changedDoc._id, conflictingRev._rev);
+	          }
+	        });
+	      } else {
+	        var serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, 'updatedAt');
+	        preferredRevision = serializedRevisions.pop();
+	        serializedRevisions.forEach(function (revision) {
+	          pouchdb.remove(changedDoc._id, revision);
+	        });
+	      }
+	      pouchdb.put(preferredRevision); // do we still need to PUT after plucking conflicts?
+	    }
+	  }, {
+	    key: 'serialiseDocWithConflicts',
+	    value: function serialiseDocWithConflicts(Doc, prop) {
+	      var mainDoc = {};
+	      var serialisedDocs = [];
+	      Object.keys(Doc).map(function (prop) {
+	        if (prop === '_conflicts') {
+	          mainDoc[prop] = Doc[prop];
+	        }
+	      });
+	      serialisedDocs = [mainDoc].concat(Doc._conflicts).sort(function (a, b) {
+	        return a[prop] > b[prop];
+	      });
+	      return serialisedDocs;
+	    }
+	  }]);
+
+	  return UtilsService;
+	}();
+
+	UtilsService.$inject = ['smartId'];
 
 	var moduleName$1 = 'angularNavData.utils';
 
@@ -923,7 +923,7 @@
 	        } else {
 	          queryOptions.ascending = true;
 	          queryOptions.startkey = 'product:';
-	          queryOptions.endkey = 'product:' + '\uFFFF';
+	          queryOptions.endkey = 'product:' + '￿';
 	        }
 
 	        return _this.productsService.allDocs(queryOptions);
