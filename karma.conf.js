@@ -13,8 +13,9 @@ module.exports = function (config) {
     frameworks: ['jasmine'],
 
     plugins: [
-      'karma-phantomjs-launcher',
-      'karma-jasmine'
+      'karma-jasmine',
+      'karma-env-preprocessor',
+      'karma-phantomjs-launcher'
     ],
 
     reporters: ['progress'],
@@ -25,6 +26,14 @@ module.exports = function (config) {
 
     autoWatch: false,
 
-    browsers: ['PhantomJS']
+    browsers: ['PhantomJS'],
+
+    preprocessors: {
+      '**/*.js': ['env']
+    },
+
+    envPreprocessor: [
+      'COUCHDB_URL'
+    ]
   })
 }
