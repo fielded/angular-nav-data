@@ -7,7 +7,8 @@ module.exports = function (config) {
       'node_modules/ng-smart-id/dist/bundle.js',
       'dist/bundle.js',
       'node_modules/angular-mocks/angular-mocks.js',
-      'test/*.spec.js'
+      'test/*.spec.js',
+      'test/*.integration.js'
     ],
 
     frameworks: ['jasmine'],
