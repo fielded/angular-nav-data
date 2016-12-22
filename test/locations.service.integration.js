@@ -12,7 +12,11 @@ var designDoc = {
   }
 }
 
-describe('locationsService', function () {
+function shouldNotBeCalled (rejection) {
+  self.fail(rejection)
+}
+
+fdescribe('locationsService', function () {
   var url = window.__env__.COUCHDB_URL || 'http://localhost:5984/test'
   var pouchDB
   var localDb
@@ -29,7 +33,8 @@ describe('locationsService', function () {
   })
 
   beforeAll(function (done) {
-    pouchDB(url)
+    remoteDb = pouchDB(url)
+    remoteDb
       .destroy()
       .then(function () {
         remoteDb = pouchDB(url)
@@ -44,14 +49,13 @@ describe('locationsService', function () {
         })
       })
       .then(done)
-      .catch(function (err) {
-        console.error(err)
-      })
+      .catch(shouldNotBeCalled)
   })
 
   beforeAll(function (done) {
     var name = 'navIntLocationsDB'
-    pouchDB(name)
+    localDb = pouchDB(name)
+    localDb
       .destroy()
       .then(function () {
         localDb = pouchDB(name)
@@ -63,9 +67,7 @@ describe('locationsService', function () {
         })
       })
       .then(done)
-      .catch(function (err) {
-        console.error(err)
-      })
+      .catch(shouldNotBeCalled)
   })
 
   it('should handle conflicts', function (done) {
@@ -78,9 +80,7 @@ describe('locationsService', function () {
         expect(doc.prop).toBe('bar')
         done()
       })
-      .catch(function (err) {
-        console.error(err)
-      })
+      .catch(shouldNotBeCalled)
     }
 
     locationsService.callOnReplicationComplete('test', assert)
