@@ -56,7 +56,7 @@ class LocationsService {
       this.localDB = this.pouchDB('navIntLocationsDB')
     }
 
-    if (!this.replicationFrom) {
+    if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
       this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
 
       this.replicationFrom
@@ -77,6 +77,10 @@ class LocationsService {
       return
     }
     this.onReplicationCompleteCallbacks[id] = callback
+  }
+
+  unregisterOnReplicationComplete (id) {
+    delete this.onReplicationCompleteCallbacks[id]
   }
 
   allDocs (options) {

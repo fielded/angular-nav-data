@@ -205,7 +205,7 @@
 	        this.localDB = this.pouchDB('navIntLocationsDB');
 	      }
 
-	      if (!this.replicationFrom) {
+	      if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
 	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
 	        this.replicationFrom.on('paused', onReplicationPaused);
@@ -227,6 +227,11 @@
 	        return;
 	      }
 	      this.onReplicationCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnReplicationComplete',
+	    value: function unregisterOnReplicationComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
 	    }
 	  }, {
 	    key: 'allDocs',
