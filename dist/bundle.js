@@ -5,13 +5,146 @@
 
 	var replicationConfig = { "timeout": 180000 };
 
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	var asyncGenerator = function () {
+	  function AwaitValue(value) {
+	    this.value = value;
+	  }
 
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	  function AsyncGenerator(gen) {
+	    var front, back;
+
+	    function send(key, arg) {
+	      return new Promise(function (resolve, reject) {
+	        var request = {
+	          key: key,
+	          arg: arg,
+	          resolve: resolve,
+	          reject: reject,
+	          next: null
+	        };
+
+	        if (back) {
+	          back = back.next = request;
+	        } else {
+	          front = back = request;
+	          resume(key, arg);
+	        }
+	      });
+	    }
+
+	    function resume(key, arg) {
+	      try {
+	        var result = gen[key](arg);
+	        var value = result.value;
+
+	        if (value instanceof AwaitValue) {
+	          Promise.resolve(value.value).then(function (arg) {
+	            resume("next", arg);
+	          }, function (arg) {
+	            resume("throw", arg);
+	          });
+	        } else {
+	          settle(result.done ? "return" : "normal", result.value);
+	        }
+	      } catch (err) {
+	        settle("throw", err);
+	      }
+	    }
+
+	    function settle(type, value) {
+	      switch (type) {
+	        case "return":
+	          front.resolve({
+	            value: value,
+	            done: true
+	          });
+	          break;
+
+	        case "throw":
+	          front.reject(value);
+	          break;
+
+	        default:
+	          front.resolve({
+	            value: value,
+	            done: false
+	          });
+	          break;
+	      }
+
+	      front = front.next;
+
+	      if (front) {
+	        resume(front.key, front.arg);
+	      } else {
+	        back = null;
+	      }
+	    }
+
+	    this._invoke = send;
+
+	    if (typeof gen.return !== "function") {
+	      this.return = undefined;
+	    }
+	  }
+
+	  if (typeof Symbol === "function" && Symbol.asyncIterator) {
+	    AsyncGenerator.prototype[Symbol.asyncIterator] = function () {
+	      return this;
+	    };
+	  }
+
+	  AsyncGenerator.prototype.next = function (arg) {
+	    return this._invoke("next", arg);
+	  };
+
+	  AsyncGenerator.prototype.throw = function (arg) {
+	    return this._invoke("throw", arg);
+	  };
+
+	  AsyncGenerator.prototype.return = function (arg) {
+	    return this._invoke("return", arg);
+	  };
+
+	  return {
+	    wrap: function (fn) {
+	      return function () {
+	        return new AsyncGenerator(fn.apply(this, arguments));
+	      };
+	    },
+	    await: function (value) {
+	      return new AwaitValue(value);
+	    }
+	  };
+	}();
+
+	var classCallCheck = function (instance, Constructor) {
+	  if (!(instance instanceof Constructor)) {
+	    throw new TypeError("Cannot call a class as a function");
+	  }
+	};
+
+	var createClass = function () {
+	  function defineProperties(target, props) {
+	    for (var i = 0; i < props.length; i++) {
+	      var descriptor = props[i];
+	      descriptor.enumerable = descriptor.enumerable || false;
+	      descriptor.configurable = true;
+	      if ("value" in descriptor) descriptor.writable = true;
+	      Object.defineProperty(target, descriptor.key, descriptor);
+	    }
+	  }
+
+	  return function (Constructor, protoProps, staticProps) {
+	    if (protoProps) defineProperties(Constructor.prototype, protoProps);
+	    if (staticProps) defineProperties(Constructor, staticProps);
+	    return Constructor;
+	  };
+	}();
 
 	var LocationsService = function () {
 	  function LocationsService($injector, pouchDB, angularNavDataUtilsService) {
-	    _classCallCheck(this, LocationsService);
+	    classCallCheck(this, LocationsService);
 
 	    var dataModuleRemoteDB = void 0;
 
@@ -37,7 +170,7 @@
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
-	  _createClass(LocationsService, [{
+	  createClass(LocationsService, [{
 	    key: 'startReplication',
 	    value: function startReplication(zone, state) {
 	      var _this = this;
@@ -114,19 +247,14 @@
 	      return db.get(id);
 	    }
 	  }]);
-
 	  return LocationsService;
 	}();
 
 	LocationsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
 
-	var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 	var LgasService = function () {
 	  function LgasService($q, smartId, locationsService, statesService, productListService, angularNavDataUtilsService) {
-	    _classCallCheck$1(this, LgasService);
+	    classCallCheck(this, LgasService);
 
 	    this.cachedLgasByState = {};
 	    this.defaultZone;
@@ -147,7 +275,7 @@
 	    this.locationsService.callOnReplicationComplete('lgas-service', onReplicationComplete);
 	  }
 
-	  _createClass$1(LgasService, [{
+	  createClass(LgasService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -197,7 +325,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone && options.state) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':￿';
+	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':\uFFFF';
 
 	          return _this2.locationsService.allDocs(queryOptions);
 	        }
@@ -324,19 +452,14 @@
 	      return this.byState({ zone: zone, state: state }).then(findLga);
 	    }
 	  }]);
-
 	  return LgasService;
 	}();
 
 	LgasService.$inject = ['$q', 'smartId', 'locationsService', 'statesService', 'productListService', 'angularNavDataUtilsService'];
 
-	var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 	var StatesService = function () {
 	  function StatesService($q, smartId, locationsService, angularNavDataUtilsService) {
-	    _classCallCheck$2(this, StatesService);
+	    classCallCheck(this, StatesService);
 
 	    this.cachedStatesByZone = {};
 	    this.defaultZone;
@@ -353,7 +476,7 @@
 	    this.locationsService.callOnReplicationComplete('states-service', onReplicationComplete);
 	  }
 
-	  _createClass$2(StatesService, [{
+	  createClass(StatesService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -385,7 +508,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':￿';
+	          queryOptions.endkey = 'zone:' + options.zone + ':\uFFFF';
 
 	          return _this.locationsService.allDocs(queryOptions);
 	        }
@@ -511,19 +634,14 @@
 	      return this.byZone({ zone: zone }).then(findState);
 	    }
 	  }]);
-
 	  return StatesService;
 	}();
 
 	StatesService.$inject = ['$q', 'smartId', 'locationsService', 'angularNavDataUtilsService'];
 
-	var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 	var ZonesService = function () {
 	  function ZonesService($q, smartId, locationsService) {
-	    _classCallCheck$3(this, ZonesService);
+	    classCallCheck(this, ZonesService);
 
 	    this.cachedZones = [];
 	    this.$q = $q;
@@ -531,7 +649,7 @@
 	    this.locationsService = locationsService;
 	  }
 
-	  _createClass$3(ZonesService, [{
+	  createClass(ZonesService, [{
 	    key: 'queryAndUpdateCache',
 	    value: function queryAndUpdateCache(options) {
 	      var _this = this;
@@ -637,15 +755,10 @@
 	      return this.all().then(findZone);
 	    }
 	  }]);
-
 	  return ZonesService;
 	}();
 
 	ZonesService.$inject = ['$q', 'smartId', 'locationsService'];
-
-	var _createClass$4 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$4(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var pluckDocs = function pluckDocs(item) {
 	  return item.doc;
@@ -661,12 +774,12 @@
 
 	var UtilsService = function () {
 	  function UtilsService(smartId) {
-	    _classCallCheck$4(this, UtilsService);
+	    classCallCheck(this, UtilsService);
 
 	    this.smartId = smartId;
 	  }
 
-	  _createClass$4(UtilsService, [{
+	  createClass(UtilsService, [{
 	    key: 'allDocs',
 	    value: function allDocs(db, options) {
 	      return db.allDocs(options).then(parseResponse);
@@ -760,7 +873,6 @@
 	      return serialisedDocs;
 	    }
 	  }]);
-
 	  return UtilsService;
 	}();
 
@@ -774,13 +886,9 @@
 
 	angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService).service('zonesService', ZonesService);
 
-	var _createClass$5 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$5(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 	var ProductsService = function () {
 	  function ProductsService($injector, pouchDB, angularNavDataUtilsService) {
-	    _classCallCheck$5(this, ProductsService);
+	    classCallCheck(this, ProductsService);
 
 	    var dataModuleRemoteDB = void 0;
 
@@ -806,7 +914,7 @@
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
-	  _createClass$5(ProductsService, [{
+	  createClass(ProductsService, [{
 	    key: 'startReplication',
 	    value: function startReplication() {
 	      var _this = this;
@@ -863,19 +971,14 @@
 	      return this.angularNavDataUtilsService.allDocs(db, options);
 	    }
 	  }]);
-
 	  return ProductsService;
 	}();
 
 	ProductsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
 
-	var _createClass$6 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _classCallCheck$6(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 	var ProductListService = function () {
 	  function ProductListService($q, productsService, angularNavDataUtilsService) {
-	    _classCallCheck$6(this, ProductListService);
+	    classCallCheck(this, ProductListService);
 
 	    this.cachedProducts = [];
 	    this.relevantIds = [];
@@ -890,7 +993,7 @@
 	    this.productsService.callOnReplicationComplete('products-list-service', onReplicationComplete);
 	  }
 
-	  _createClass$6(ProductListService, [{
+	  createClass(ProductListService, [{
 	    key: 'registerOnCacheUpdatedCallback',
 	    value: function registerOnCacheUpdatedCallback(id, callback) {
 	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
@@ -923,7 +1026,7 @@
 	        } else {
 	          queryOptions.ascending = true;
 	          queryOptions.startkey = 'product:';
-	          queryOptions.endkey = 'product:' + '￿';
+	          queryOptions.endkey = 'product:' + '\uFFFF';
 	        }
 
 	        return _this.productsService.allDocs(queryOptions);
@@ -982,7 +1085,6 @@
 	      this.relevant({ bustCache: true });
 	    }
 	  }]);
-
 	  return ProductListService;
 	}();
 
