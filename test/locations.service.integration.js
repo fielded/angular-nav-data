@@ -30,6 +30,7 @@ describe('locationsService', function () {
       .value('dataModuleRemoteDB', url)
 
     var $injector = angular.injector(['ng', 'testModule'])
+
     pouchDB = $injector.get('pouchDB')
     locationsService = $injector.get('locationsService')
   })
@@ -78,6 +79,7 @@ describe('locationsService', function () {
         conflicts: true
       })
       .then(function (doc) {
+        expect(doc._rev.substring(0, 2)).toBe('2-')
         expect(doc._conflicts.length).toBe(0)
         expect(doc.prop).toBe('bar')
         done()
@@ -85,8 +87,26 @@ describe('locationsService', function () {
       .catch(shouldNotBeCalled)
     }
 
-    locationsService.callOnReplicationComplete('test', assert)
-    locationsService.startReplication('foo')
+    function upsert (db) {
+      return db.get('zone:foo')
+        .then(function (doc) {
+          return db.put(doc)
+        })
+    }
+
+    function replicate (cb) {
+      locationsService.callOnReplicationComplete('test', cb)
+      locationsService.startReplication('foo')
+    }
+
+    function update () {
+      locationsService.unregisterOnReplicationComplete('test')
+      return upsert(localDb)
+        .then(replicate.bind(null, assert))
+        .catch(shouldNotBeCalled)
+    }
+
+    replicate(update)
   })
 
   afterAll(function (done) {
