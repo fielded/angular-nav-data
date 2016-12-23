@@ -66,39 +66,43 @@ class UtilsService {
       return
     }
 
-    if (!changedDoc.updatedAt) {
-      preferredRevision = changedDoc
-      changedDoc._conflicts.map((conflictingRev) => {
-        if (conflictingRev.updatedAt) {
-          preferredRevision = conflictingRev
-        } else {
-          pouchdb.remove(changedDoc._id, conflictingRev._rev)
-        }
+    pouchdb.get(changedDoc._id, {'open_revs': changedDoc._conflicts})
+      .then(conflictingRevObjs => {
+        let serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt')
+        preferredRevision = serializedRevisions.shift()
+        serializedRevisions.forEach(revision => {
+          pouchdb.remove(changedDoc._id, revision._rev)
+            .catch(err => console.error(err))
+        })
+        preferredRevision._conflicts = []
+        pouchdb.put(preferredRevision)
+          .catch(err => {
+            console.error(err)
+          })
       })
-    } else {
-      let serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, 'updatedAt')
-      preferredRevision = serializedRevisions.pop()
-      serializedRevisions.forEach(revision => {
-        pouchdb.remove(changedDoc._id, revision)
-      })
-    }
-    pouchdb.put(preferredRevision) // do we still need to PUT after plucking conflicts?
   }
 
-  serialiseDocWithConflicts (Doc, prop) {
-    let mainDoc = {}
-    let serialisedDocs = []
-    Object.keys(Doc).map((prop) => {
-      if (prop === '_conflicts') {
-        mainDoc[prop] = Doc[prop]
-      }
-    })
-    serialisedDocs = [mainDoc]
-      .concat(Doc._conflicts)
+  serialiseDocWithConflictsByProp (doc, conflicts, prop) {
+    return [doc].concat(conflicts)
+      .reduce((arr, obj) => {
+        if (obj.ok) {
+          arr.push(obj.ok)
+        } else {
+          arr.push(obj)
+        }
+        return arr
+      }, [])
       .sort((a, b) => {
-        return a[prop] > b[prop]
+        if (a[prop] && !b[prop]) {
+          return -1
+        }
+        if (!a[prop] && b[prop]) {
+          return 1
+        }
+        let aSecs = new Date(a.updatedAt).getTime()
+        let bSecs = new Date(b.updatedAt).getTime()
+        return bSecs - aSecs // highest first
       })
-    return serialisedDocs
   }
 }
 

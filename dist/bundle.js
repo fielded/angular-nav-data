@@ -846,6 +846,8 @@
 	  }, {
 	    key: 'checkAndResolveConflicts',
 	    value: function checkAndResolveConflicts(_ref, pouchdb) {
+	      var _this2 = this;
+
 	      var changedDoc = _ref.change.doc;
 
 	      var preferredRevision = {};
@@ -853,38 +855,41 @@
 	        return;
 	      }
 
-	      if (!changedDoc.updatedAt) {
-	        preferredRevision = changedDoc;
-	        changedDoc._conflicts.map(function (conflictingRev) {
-	          if (conflictingRev.updatedAt) {
-	            preferredRevision = conflictingRev;
-	          } else {
-	            pouchdb.remove(changedDoc._id, conflictingRev._rev);
-	          }
-	        });
-	      } else {
-	        var serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, 'updatedAt');
-	        preferredRevision = serializedRevisions.pop();
+	      pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
+	        var serializedRevisions = _this2.serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
+	        preferredRevision = serializedRevisions.shift();
 	        serializedRevisions.forEach(function (revision) {
-	          pouchdb.remove(changedDoc._id, revision);
+	          pouchdb.remove(changedDoc._id, revision._rev).catch(function (err) {
+	            return console.error(err);
+	          });
 	        });
-	      }
-	      pouchdb.put(preferredRevision); // do we still need to PUT after plucking conflicts?
+	        preferredRevision._conflicts = [];
+	        pouchdb.put(preferredRevision).catch(function (err) {
+	          console.error(err);
+	        });
+	      });
 	    }
 	  }, {
-	    key: 'serialiseDocWithConflicts',
-	    value: function serialiseDocWithConflicts(Doc, prop) {
-	      var mainDoc = {};
-	      var serialisedDocs = [];
-	      Object.keys(Doc).map(function (prop) {
-	        if (prop === '_conflicts') {
-	          mainDoc[prop] = Doc[prop];
+	    key: 'serialiseDocWithConflictsByProp',
+	    value: function serialiseDocWithConflictsByProp(doc, conflicts, prop) {
+	      return [doc].concat(conflicts).reduce(function (arr, obj) {
+	        if (obj.ok) {
+	          arr.push(obj.ok);
+	        } else {
+	          arr.push(obj);
 	        }
+	        return arr;
+	      }, []).sort(function (a, b) {
+	        if (a[prop] && !b[prop]) {
+	          return -1;
+	        }
+	        if (!a[prop] && b[prop]) {
+	          return 1;
+	        }
+	        var aSecs = new Date(a.updatedAt).getTime();
+	        var bSecs = new Date(b.updatedAt).getTime();
+	        return bSecs - aSecs; // highest first
 	      });
-	      serialisedDocs = [mainDoc].concat(Doc._conflicts).sort(function (a, b) {
-	        return a[prop] > b[prop];
-	      });
-	      return serialisedDocs;
 	    }
 	  }]);
 	  return UtilsService;

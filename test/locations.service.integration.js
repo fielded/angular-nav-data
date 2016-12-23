@@ -17,7 +17,7 @@ function shouldNotBeCalled (rejection) {
 }
 
 describe('locationsService', function () {
-  var url = window.__env__.COUCHDB_URL || 'http://localhost:5984'
+  var url = window.__env__.COUCHDB_URL
   url += '/test-' + Math.random().toString(36).slice(2)
 
   var pouchDB
@@ -79,8 +79,8 @@ describe('locationsService', function () {
         conflicts: true
       })
       .then(function (doc) {
-        expect(doc._rev.substring(0, 2)).toBe('2-')
-        expect(doc._conflicts.length).toBe(0)
+        expect(doc._rev.substring(0, 2)).toBe('3-')
+        expect(doc._conflicts).not.toBeDefined() // pouchdb removes empty conflict array
         expect(doc.prop).toBe('bar')
         done()
       })
