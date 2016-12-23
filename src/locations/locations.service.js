@@ -63,7 +63,13 @@ class LocationsService {
         .on('paused', onReplicationPaused)
     }
 
-    this.localDB.changes({conflicts: true, onChange: this.angularNavDataUtilsService.checkAndResolveConflicts.bind(null, this.localDB)})
+    const changeOpts = {
+      conflicts: true,
+      include_docs: true
+    }
+
+    this.localDB.changes(changeOpts).$promise
+      .then(null, null, change => this.angularNavDataUtilsService.checkAndResolveConflicts(change, this.localDB))
   }
 
   stopReplication () {

@@ -60,7 +60,7 @@ class UtilsService {
     }, {})
   }
 
-  checkAndResolveConflicts (changedDoc, pouchdb) {
+  checkAndResolveConflicts ({change: { doc: changedDoc }}, pouchdb) {
     let preferredRevision = {}
     if (!changedDoc._conflicts) {
       return

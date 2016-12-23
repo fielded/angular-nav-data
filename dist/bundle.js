@@ -211,7 +211,14 @@
 	        this.replicationFrom.on('paused', onReplicationPaused);
 	      }
 
-	      this.localDB.changes({ conflicts: true, onChange: this.angularNavDataUtilsService.checkAndResolveConflicts.bind(null, this.localDB) });
+	      var changeOpts = {
+	        conflicts: true,
+	        include_docs: true
+	      };
+
+	      this.localDB.changes(changeOpts).$promise.then(null, null, function (change) {
+	        return _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB);
+	      });
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -838,7 +845,9 @@
 	    }
 	  }, {
 	    key: 'checkAndResolveConflicts',
-	    value: function checkAndResolveConflicts(changedDoc, pouchdb) {
+	    value: function checkAndResolveConflicts(_ref, pouchdb) {
+	      var changedDoc = _ref.change.doc;
+
 	      var preferredRevision = {};
 	      if (!changedDoc._conflicts) {
 	        return;
