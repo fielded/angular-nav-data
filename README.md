@@ -52,6 +52,12 @@ The test suite is configured to run with PhantomJS and is powered by:
 npm test
 ```
 
+To run the integration tests:
+
+1. Enable CORS on your CouchDB
+2. If you have admin party enabled, run `npm t` (there is no step 3)
+3. Run `COUCHDB_URL=http://[user:pass@]example.com/<db> npm t`
+
 ## Release Process
 
 To make a release, you need to run `npm run build`, commit the `dist` folder and tag the commit with an appropiate version according to the [SemVer spec](http://semver.org/).

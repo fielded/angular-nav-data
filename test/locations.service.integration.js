@@ -17,7 +17,9 @@ function shouldNotBeCalled (rejection) {
 }
 
 fdescribe('locationsService', function () {
-  var url = window.__env__.COUCHDB_URL || 'http://localhost:5984/test'
+  var url = window.__env__.COUCHDB_URL || 'http://localhost:5984'
+  url += '/test-' + Math.random().toString(36).slice(2)
+
   var pouchDB
   var localDb
   var remoteDb

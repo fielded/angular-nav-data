@@ -15,6 +15,7 @@
     "angular": "^1.5.5"
   },
   "devDependencies": {
+    "add-cors-to-couchdb": "0.0.6",
     "angular-mocks": "^1.5.5",
     "angular-pouchdb": "^4.0.0",
     "babel-core": "^6.8.0",
