@@ -56,7 +56,7 @@ To run the integration tests:
 
 1. Enable CORS on your CouchDB
 2. If you have admin party enabled, run `npm t` (there is no step 3)
-3. Run `COUCHDB_URL=http://[user:pass@]example.com/<db> npm t`
+3. Run `COUCHDB_URL=http://[user:pass@]example.com npm t`
 
 ## Release Process
 

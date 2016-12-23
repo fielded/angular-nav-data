@@ -88,4 +88,10 @@ fdescribe('locationsService', function () {
     locationsService.callOnReplicationComplete('test', assert)
     locationsService.startReplication('foo')
   })
+
+  afterAll(function (done) {
+    remoteDb.destroy()
+      .then(done)
+      .catch(shouldNotBeCalled)
+  })
 })
