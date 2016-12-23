@@ -16,7 +16,7 @@ function shouldNotBeCalled (rejection) {
   self.fail(rejection)
 }
 
-fdescribe('locationsService', function () {
+describe('locationsService', function () {
   var url = window.__env__.COUCHDB_URL || 'http://localhost:5984'
   url += '/test-' + Math.random().toString(36).slice(2)
 
