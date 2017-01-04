@@ -807,6 +807,27 @@
 	  return response.rows.map(pluckDocs).filter(isDefined);
 	};
 
+	var serialiseDocWithConflictsByProp = function serialiseDocWithConflictsByProp(doc, conflicts, prop) {
+	  return [doc].concat(conflicts).reduce(function (arr, obj) {
+	    if (obj.ok) {
+	      arr.push(obj.ok);
+	    } else {
+	      arr.push(obj);
+	    }
+	    return arr;
+	  }, []).sort(function (a, b) {
+	    if (a[prop] && !b[prop]) {
+	      return -1;
+	    }
+	    if (!a[prop] && b[prop]) {
+	      return 1;
+	    }
+	    var aSecs = new Date(a.updatedAt).getTime();
+	    var bSecs = new Date(b.updatedAt).getTime();
+	    return bSecs - aSecs; // highest first
+	  });
+	};
+
 	var UtilsService = function () {
 	  function UtilsService($q, smartId) {
 	    classCallCheck(this, UtilsService);
@@ -870,8 +891,6 @@
 	  }, {
 	    key: 'checkAndResolveConflicts',
 	    value: function checkAndResolveConflicts(_ref, pouchdb) {
-	      var _this2 = this;
-
 	      var changedDoc = _ref.change.doc;
 
 	      if (!changedDoc._conflicts) {
@@ -879,7 +898,7 @@
 	      }
 
 	      return pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
-	        var serializedRevisions = _this2.serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
+	        var serializedRevisions = serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
 
 	        var winningRevision = angular.extend({}, serializedRevisions[0], {
 	          _rev: changedDoc._rev,
@@ -894,28 +913,6 @@
 	        return pouchdb.put(winningRevision).then(function () {
 	          return pouchdb.bulkDocs(loosingRevisions);
 	        });
-	      });
-	    }
-	  }, {
-	    key: 'serialiseDocWithConflictsByProp',
-	    value: function serialiseDocWithConflictsByProp(doc, conflicts, prop) {
-	      return [doc].concat(conflicts).reduce(function (arr, obj) {
-	        if (obj.ok) {
-	          arr.push(obj.ok);
-	        } else {
-	          arr.push(obj);
-	        }
-	        return arr;
-	      }, []).sort(function (a, b) {
-	        if (a[prop] && !b[prop]) {
-	          return -1;
-	        }
-	        if (!a[prop] && b[prop]) {
-	          return 1;
-	        }
-	        var aSecs = new Date(a.updatedAt).getTime();
-	        var bSecs = new Date(b.updatedAt).getTime();
-	        return bSecs - aSecs; // highest first
 	      });
 	    }
 	  }]);
