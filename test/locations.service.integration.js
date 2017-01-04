@@ -17,7 +17,7 @@ function shouldNotBeCalled (rejection) {
 }
 
 describe('locationsService', function () {
-  var url = window.__env__.COUCHDB_URL
+  var url = window.__env__.COUCHDB_URL || 'http://localhost:5984'
   url += '/test-' + Math.random().toString(36).slice(2)
 
   var pouchDB
