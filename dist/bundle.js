@@ -954,6 +954,7 @@
 	    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions);
 	    this.replicationFrom;
 	    this.localDB;
+	    this.onChangeCompleteCallbacks = {};
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
@@ -962,10 +963,17 @@
 	    value: function startReplication() {
 	      var _this = this;
 
-	      var onReplicationComplete = function onReplicationComplete() {
-	        Object.keys(_this.onReplicationCompleteCallbacks).forEach(function (id) {
-	          return _this.onReplicationCompleteCallbacks[id]();
+	      var onComplete = function onComplete(handler, res) {
+	        Object.keys(_this[handler]).forEach(function (id) {
+	          return _this[handler][id](res);
 	        });
+	      };
+
+	      var onChangeComplete = function onChangeComplete(res) {
+	        return onComplete('onChangeCompleteCallbacks', res);
+	      };
+	      var onReplicationComplete = function onReplicationComplete() {
+	        return onComplete('onReplicationCompleteCallbacks');
 	      };
 
 	      var onReplicationPaused = function onReplicationPaused(err) {
@@ -985,12 +993,22 @@
 	        this.localDB = this.pouchDB('navIntProductsDB');
 	      }
 
-	      if (!this.replicationFrom) {
+	      if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
 	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
 	        this.replicationFrom.on('paused', onReplicationPaused);
 	      }
-	      this.localDB.changes({ conflicts: true, onChange: UtilsService.checkAndResolveConflicts.bind(null, this.localDB) });
+
+	      var changeOpts = {
+	        conflicts: true,
+	        include_docs: true
+	      };
+
+	      var handleConflicts = function handleConflicts(change) {
+	        _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB).then(onChangeComplete).catch(onChangeComplete);
+	      };
+
+	      this.localDB.changes(changeOpts).$promise.then(null, null, handleConflicts);
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -1006,6 +1024,24 @@
 	        return;
 	      }
 	      this.onReplicationCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnReplicationComplete',
+	    value: function unregisterOnReplicationComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
+	    }
+	  }, {
+	    key: 'callOnChangeComplete',
+	    value: function callOnChangeComplete(id, callback) {
+	      if (this.onChangeCompleteCallbacks[id]) {
+	        return;
+	      }
+	      this.onChangeCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnChangeComplete',
+	    value: function unregisterOnChangeComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
 	    }
 	  }, {
 	    key: 'allDocs',
