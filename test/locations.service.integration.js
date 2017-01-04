@@ -75,10 +75,6 @@ fdescribe('locationsService', function () {
 
   it('should handle conflicts', function (done) {
     function assert (removedRevisionResults) {
-      expect(removedRevisionResults.every(function (res) {
-        return res.ok
-      })).toBe(true)
-
       return localDb.get('zone:foo', {
         conflicts: true
       })
