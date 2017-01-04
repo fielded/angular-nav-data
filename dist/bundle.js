@@ -167,6 +167,7 @@
 	    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions);
 	    this.replicationFrom;
 	    this.localDB;
+	    this.onChangeCompleteCallbacks = {};
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
@@ -175,10 +176,17 @@
 	    value: function startReplication(zone, state) {
 	      var _this = this;
 
-	      var onReplicationComplete = function onReplicationComplete() {
-	        Object.keys(_this.onReplicationCompleteCallbacks).forEach(function (id) {
-	          return _this.onReplicationCompleteCallbacks[id]();
+	      var onComplete = function onComplete(handler, res) {
+	        Object.keys(_this[handler]).forEach(function (id) {
+	          return _this[handler][id](res);
 	        });
+	      };
+
+	      var onChangeComplete = function onChangeComplete(res) {
+	        return onComplete('onChangeCompleteCallbacks', res);
+	      };
+	      var onReplicationComplete = function onReplicationComplete() {
+	        return onComplete('onReplicationCompleteCallbacks');
 	      };
 
 	      var onReplicationPaused = function onReplicationPaused(err) {
@@ -216,9 +224,11 @@
 	        include_docs: true
 	      };
 
-	      this.localDB.changes(changeOpts).$promise.then(null, null, function (change) {
-	        return _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB);
-	      });
+	      var handleConflicts = function handleConflicts(change) {
+	        _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB).then(onChangeComplete).catch(onChangeComplete);
+	      };
+
+	      this.localDB.changes(changeOpts).$promise.then(null, null, handleConflicts);
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -238,6 +248,19 @@
 	  }, {
 	    key: 'unregisterOnReplicationComplete',
 	    value: function unregisterOnReplicationComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
+	    }
+	  }, {
+	    key: 'callOnChangeComplete',
+	    value: function callOnChangeComplete(id, callback) {
+	      if (this.onChangeCompleteCallbacks[id]) {
+	        return;
+	      }
+	      this.onChangeCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnChangeComplete',
+	    value: function unregisterOnChangeComplete(id) {
 	      delete this.onReplicationCompleteCallbacks[id];
 	    }
 	  }, {
@@ -785,9 +808,10 @@
 	};
 
 	var UtilsService = function () {
-	  function UtilsService(smartId) {
+	  function UtilsService($q, smartId) {
 	    classCallCheck(this, UtilsService);
 
+	    this.$q = $q;
 	    this.smartId = smartId;
 	  }
 
@@ -850,22 +874,25 @@
 
 	      var changedDoc = _ref.change.doc;
 
-	      var preferredRevision = {};
 	      if (!changedDoc._conflicts) {
-	        return;
+	        return this.$q.resolve();
 	      }
 
-	      pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
+	      return pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
 	        var serializedRevisions = _this2.serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
-	        preferredRevision = serializedRevisions.shift();
-	        serializedRevisions.forEach(function (revision) {
-	          pouchdb.remove(changedDoc._id, revision._rev).catch(function (err) {
-	            return console.error(err);
-	          });
+
+	        var winningRevision = angular.extend({}, serializedRevisions[0], {
+	          _rev: changedDoc._rev,
+	          _conflicts: []
 	        });
-	        preferredRevision._conflicts = [];
-	        pouchdb.put(preferredRevision).catch(function (err) {
-	          console.error(err);
+
+	        var loosingRevisions = serializedRevisions.map(function (doc) {
+	          doc._deleted = true;
+	          return doc;
+	        });
+
+	        return pouchdb.put(winningRevision).then(function () {
+	          return pouchdb.bulkDocs(loosingRevisions);
 	        });
 	      });
 	    }
@@ -895,7 +922,7 @@
 	  return UtilsService;
 	}();
 
-	UtilsService.$inject = ['smartId'];
+	UtilsService.$inject = ['$q', 'smartId'];
 
 	var moduleName$1 = 'angularNavData.utils';
 

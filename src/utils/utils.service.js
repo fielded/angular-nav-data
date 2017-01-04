@@ -13,7 +13,8 @@ const parseResponse = (response) => {
 }
 
 class UtilsService {
-  constructor (smartId) {
+  constructor ($q, smartId) {
+    this.$q = $q
     this.smartId = smartId
   }
 
@@ -61,24 +62,26 @@ class UtilsService {
   }
 
   checkAndResolveConflicts ({change: { doc: changedDoc }}, pouchdb) {
-    let preferredRevision = {}
     if (!changedDoc._conflicts) {
-      return
+      return this.$q.resolve()
     }
 
-    pouchdb.get(changedDoc._id, {'open_revs': changedDoc._conflicts})
+    return pouchdb.get(changedDoc._id, {'open_revs': changedDoc._conflicts})
       .then(conflictingRevObjs => {
-        let serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt')
-        preferredRevision = serializedRevisions.shift()
-        serializedRevisions.forEach(revision => {
-          pouchdb.remove(changedDoc._id, revision._rev)
-            .catch(err => console.error(err))
+        const serializedRevisions = this.serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt')
+
+        const winningRevision = angular.extend({}, serializedRevisions[0], {
+          _rev: changedDoc._rev,
+          _conflicts: []
         })
-        preferredRevision._conflicts = []
-        pouchdb.put(preferredRevision)
-          .catch(err => {
-            console.error(err)
-          })
+
+        const loosingRevisions = serializedRevisions.map(doc => {
+          doc._deleted = true
+          return doc
+        })
+
+        return pouchdb.put(winningRevision)
+          .then(() => pouchdb.bulkDocs(loosingRevisions))
       })
   }
 
@@ -106,6 +109,9 @@ class UtilsService {
   }
 }
 
-UtilsService.$inject = ['smartId']
+UtilsService.$inject = [
+  '$q',
+  'smartId'
+]
 
 export default UtilsService

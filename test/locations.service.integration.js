@@ -16,7 +16,7 @@ function shouldNotBeCalled (rejection) {
   self.fail(rejection)
 }
 
-describe('locationsService', function () {
+fdescribe('locationsService', function () {
   var url = window.__env__.COUCHDB_URL || 'http://localhost:5984'
   url += '/test-' + Math.random().toString(36).slice(2)
 
@@ -74,7 +74,11 @@ describe('locationsService', function () {
   })
 
   it('should handle conflicts', function (done) {
-    function assert () {
+    function assert (removedRevisionResults) {
+      expect(removedRevisionResults.every(function (res) {
+        return res.ok
+      })).toBe(true)
+
       return localDb.get('zone:foo', {
         conflicts: true
       })
@@ -94,19 +98,21 @@ describe('locationsService', function () {
         })
     }
 
-    function replicate (cb) {
-      locationsService.callOnReplicationComplete('test', cb)
+    function replicate () {
       locationsService.startReplication('foo')
+      locationsService.callOnChangeComplete('test', assert)
     }
 
     function update () {
       locationsService.unregisterOnReplicationComplete('test')
       return upsert(localDb)
-        .then(replicate.bind(null, assert))
+        .then(replicate)
         .catch(shouldNotBeCalled)
     }
 
-    replicate(update)
+    locationsService.unregisterOnReplicationComplete('test')
+    locationsService.callOnReplicationComplete('test', update)
+    locationsService.startReplication('foo')
   })
 
   afterAll(function (done) {
