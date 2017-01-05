@@ -7,14 +7,16 @@ module.exports = function (config) {
       'node_modules/ng-smart-id/dist/bundle.js',
       'dist/bundle.js',
       'node_modules/angular-mocks/angular-mocks.js',
-      'test/*.spec.js'
+      'test/*.spec.js',
+      'test/*.integration.js'
     ],
 
     frameworks: ['jasmine'],
 
     plugins: [
-      'karma-phantomjs-launcher',
-      'karma-jasmine'
+      'karma-jasmine',
+      'karma-env-preprocessor',
+      'karma-phantomjs-launcher'
     ],
 
     reporters: ['progress'],
@@ -25,6 +27,14 @@ module.exports = function (config) {
 
     autoWatch: false,
 
-    browsers: ['PhantomJS']
+    browsers: ['PhantomJS'],
+
+    preprocessors: {
+      '**/*.js': ['env']
+    },
+
+    envPreprocessor: [
+      'COUCHDB_URL'
+    ]
   })
 }

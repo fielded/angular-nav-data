@@ -1,9 +1,12 @@
 sudo: false
 language: node_js
 node_js:
-- '5.8'
+- 6
+services:
+- couchdb
 before_script:
 - npm install
+- ./node_modules/.bin/add-cors-to-couchdb
 script:
 - npm test
 cache:

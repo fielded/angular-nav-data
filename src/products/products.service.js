@@ -23,14 +23,18 @@ class ProductsService {
     this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions)
     this.replicationFrom
     this.localDB
+    this.onChangeCompleteCallbacks = {}
     this.onReplicationCompleteCallbacks = {}
   }
 
   startReplication () {
-    const onReplicationComplete = () => {
-      Object.keys(this.onReplicationCompleteCallbacks)
-        .forEach((id) => this.onReplicationCompleteCallbacks[id]())
+    const onComplete = (handler, res) => {
+      Object.keys(this[handler])
+        .forEach(id => this[handler][id](res))
     }
+
+    const onChangeComplete = res => onComplete('onChangeCompleteCallbacks', res)
+    const onReplicationComplete = () => onComplete('onReplicationCompleteCallbacks')
 
     const onReplicationPaused = (err) => {
       if (!err) {
@@ -49,12 +53,27 @@ class ProductsService {
       this.localDB = this.pouchDB('navIntProductsDB')
     }
 
-    if (!this.replicationFrom) {
+    if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
       this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options)
 
       this.replicationFrom
         .on('paused', onReplicationPaused)
     }
+
+    const changeOpts = {
+      conflicts: true,
+      include_docs: true
+    }
+
+    const handleConflicts = change => {
+      this.angularNavDataUtilsService
+        .checkAndResolveConflicts(change, this.localDB)
+        .then(onChangeComplete)
+        .catch(onChangeComplete)
+    }
+
+    this.localDB.changes(changeOpts).$promise
+      .then(null, null, handleConflicts)
   }
 
   stopReplication () {
@@ -68,6 +87,21 @@ class ProductsService {
       return
     }
     this.onReplicationCompleteCallbacks[id] = callback
+  }
+
+  unregisterOnReplicationComplete (id) {
+    delete this.onReplicationCompleteCallbacks[id]
+  }
+
+  callOnChangeComplete (id, callback) {
+    if (this.onChangeCompleteCallbacks[id]) {
+      return
+    }
+    this.onChangeCompleteCallbacks[id] = callback
+  }
+
+  unregisterOnChangeComplete (id) {
+    delete this.onReplicationCompleteCallbacks[id]
   }
 
   allDocs (options) {

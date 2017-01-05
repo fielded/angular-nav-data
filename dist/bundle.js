@@ -5,6 +5,119 @@
 
 	var replicationConfig = { "timeout": 180000 };
 
+	var asyncGenerator = function () {
+	  function AwaitValue(value) {
+	    this.value = value;
+	  }
+
+	  function AsyncGenerator(gen) {
+	    var front, back;
+
+	    function send(key, arg) {
+	      return new Promise(function (resolve, reject) {
+	        var request = {
+	          key: key,
+	          arg: arg,
+	          resolve: resolve,
+	          reject: reject,
+	          next: null
+	        };
+
+	        if (back) {
+	          back = back.next = request;
+	        } else {
+	          front = back = request;
+	          resume(key, arg);
+	        }
+	      });
+	    }
+
+	    function resume(key, arg) {
+	      try {
+	        var result = gen[key](arg);
+	        var value = result.value;
+
+	        if (value instanceof AwaitValue) {
+	          Promise.resolve(value.value).then(function (arg) {
+	            resume("next", arg);
+	          }, function (arg) {
+	            resume("throw", arg);
+	          });
+	        } else {
+	          settle(result.done ? "return" : "normal", result.value);
+	        }
+	      } catch (err) {
+	        settle("throw", err);
+	      }
+	    }
+
+	    function settle(type, value) {
+	      switch (type) {
+	        case "return":
+	          front.resolve({
+	            value: value,
+	            done: true
+	          });
+	          break;
+
+	        case "throw":
+	          front.reject(value);
+	          break;
+
+	        default:
+	          front.resolve({
+	            value: value,
+	            done: false
+	          });
+	          break;
+	      }
+
+	      front = front.next;
+
+	      if (front) {
+	        resume(front.key, front.arg);
+	      } else {
+	        back = null;
+	      }
+	    }
+
+	    this._invoke = send;
+
+	    if (typeof gen.return !== "function") {
+	      this.return = undefined;
+	    }
+	  }
+
+	  if (typeof Symbol === "function" && Symbol.asyncIterator) {
+	    AsyncGenerator.prototype[Symbol.asyncIterator] = function () {
+	      return this;
+	    };
+	  }
+
+	  AsyncGenerator.prototype.next = function (arg) {
+	    return this._invoke("next", arg);
+	  };
+
+	  AsyncGenerator.prototype.throw = function (arg) {
+	    return this._invoke("throw", arg);
+	  };
+
+	  AsyncGenerator.prototype.return = function (arg) {
+	    return this._invoke("return", arg);
+	  };
+
+	  return {
+	    wrap: function (fn) {
+	      return function () {
+	        return new AsyncGenerator(fn.apply(this, arguments));
+	      };
+	    },
+	    await: function (value) {
+	      return new AwaitValue(value);
+	    }
+	  };
+	}();
+
 	var classCallCheck = function (instance, Constructor) {
 	  if (!(instance instanceof Constructor)) {
 	    throw new TypeError("Cannot call a class as a function");
@@ -54,6 +167,7 @@
 	    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions);
 	    this.replicationFrom;
 	    this.localDB;
+	    this.onChangeCompleteCallbacks = {};
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
@@ -62,10 +176,17 @@
 	    value: function startReplication(zone, state) {
 	      var _this = this;
 
-	      var onReplicationComplete = function onReplicationComplete() {
-	        Object.keys(_this.onReplicationCompleteCallbacks).forEach(function (id) {
-	          return _this.onReplicationCompleteCallbacks[id]();
+	      var onComplete = function onComplete(handler, res) {
+	        Object.keys(_this[handler]).forEach(function (id) {
+	          return _this[handler][id](res);
 	        });
+	      };
+
+	      var onChangeComplete = function onChangeComplete(res) {
+	        return onComplete('onChangeCompleteCallbacks', res);
+	      };
+	      var onReplicationComplete = function onReplicationComplete() {
+	        return onComplete('onReplicationCompleteCallbacks');
 	      };
 
 	      var onReplicationPaused = function onReplicationPaused(err) {
@@ -88,12 +209,26 @@
 	        options.query_params.state = state;
 	      }
 
-	      this.localDB = this.pouchDB('navIntLocationsDB');
-	      this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+	      if (!this.localDB) {
+	        this.localDB = this.pouchDB('navIntLocationsDB');
+	      }
 
-	      this.replicationFrom.on('paused', onReplicationPaused);
+	      if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
+	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-	      return this.replicationFrom;
+	        this.replicationFrom.on('paused', onReplicationPaused);
+	      }
+
+	      var changeOpts = {
+	        conflicts: true,
+	        include_docs: true
+	      };
+
+	      var handleConflicts = function handleConflicts(change) {
+	        _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB).then(onChangeComplete).catch(onChangeComplete);
+	      };
+
+	      this.localDB.changes(changeOpts).$promise.then(null, null, handleConflicts);
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -109,6 +244,24 @@
 	        return;
 	      }
 	      this.onReplicationCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnReplicationComplete',
+	    value: function unregisterOnReplicationComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
+	    }
+	  }, {
+	    key: 'callOnChangeComplete',
+	    value: function callOnChangeComplete(id, callback) {
+	      if (this.onChangeCompleteCallbacks[id]) {
+	        return;
+	      }
+	      this.onChangeCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnChangeComplete',
+	    value: function unregisterOnChangeComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
 	    }
 	  }, {
 	    key: 'allDocs',
@@ -207,7 +360,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone && options.state) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':state:' + options.state + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':￿';
+	          queryOptions.endkey = 'zone:' + options.zone + ':state:' + options.state + ':\uFFFF';
 
 	          return _this2.locationsService.allDocs(queryOptions);
 	        }
@@ -238,7 +391,7 @@
 	    value: function byState() {
 	      var _this3 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var onlyId = function onlyId(doc) {
 	        return doc.id;
@@ -276,7 +429,7 @@
 	  }, {
 	    key: 'idsByState',
 	    value: function idsByState() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyIds = true;
 	      return this.byState(options);
@@ -284,7 +437,7 @@
 	  }, {
 	    key: 'list',
 	    value: function list() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.asArray = true;
 	      return this.byState(options);
@@ -390,7 +543,7 @@
 	        // performant `allDocs` instead of a view
 	        if (options.zone) {
 	          queryOptions.startkey = 'zone:' + options.zone + ':';
-	          queryOptions.endkey = 'zone:' + options.zone + ':￿';
+	          queryOptions.endkey = 'zone:' + options.zone + ':\uFFFF';
 
 	          return _this.locationsService.allDocs(queryOptions);
 	        }
@@ -421,7 +574,7 @@
 	    value: function byZone() {
 	      var _this2 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var onlyId = function onlyId(doc) {
 	        return doc.id;
@@ -458,7 +611,7 @@
 	  }, {
 	    key: 'idsByZone',
 	    value: function idsByZone() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyIds = true;
 	      return this.byZone(options);
@@ -466,7 +619,7 @@
 	  }, {
 	    key: 'list',
 	    value: function list() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.asArray = true;
 	      return this.byZone(options);
@@ -563,7 +716,7 @@
 	    value: function all() {
 	      var _this2 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var onlyId = function onlyId(doc) {
 	        return doc.id;
@@ -590,7 +743,7 @@
 	  }, {
 	    key: 'ids',
 	    value: function ids() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyIds = true;
 	      return this.all(options);
@@ -598,7 +751,7 @@
 	  }, {
 	    key: 'list',
 	    value: function list() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      return this.all(options);
 	    }
@@ -654,10 +807,32 @@
 	  return response.rows.map(pluckDocs).filter(isDefined);
 	};
 
+	var serialiseDocWithConflictsByProp = function serialiseDocWithConflictsByProp(doc, conflicts, prop) {
+	  return [doc].concat(conflicts).reduce(function (arr, obj) {
+	    if (obj.ok) {
+	      arr.push(obj.ok);
+	    } else {
+	      arr.push(obj);
+	    }
+	    return arr;
+	  }, []).sort(function (a, b) {
+	    if (a[prop] && !b[prop]) {
+	      return -1;
+	    }
+	    if (!a[prop] && b[prop]) {
+	      return 1;
+	    }
+	    var aSecs = new Date(a.updatedAt).getTime();
+	    var bSecs = new Date(b.updatedAt).getTime();
+	    return bSecs - aSecs; // highest first
+	  });
+	};
+
 	var UtilsService = function () {
-	  function UtilsService(smartId) {
+	  function UtilsService($q, smartId) {
 	    classCallCheck(this, UtilsService);
 
+	    this.$q = $q;
 	    this.smartId = smartId;
 	  }
 
@@ -713,11 +888,38 @@
 	        return index;
 	      }, {});
 	    }
+	  }, {
+	    key: 'checkAndResolveConflicts',
+	    value: function checkAndResolveConflicts(_ref, pouchdb) {
+	      var changedDoc = _ref.change.doc;
+
+	      if (!changedDoc._conflicts) {
+	        return this.$q.resolve();
+	      }
+
+	      return pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
+	        var serializedRevisions = serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
+
+	        var winningRevision = angular.extend({}, serializedRevisions[0], {
+	          _rev: changedDoc._rev,
+	          _conflicts: []
+	        });
+
+	        var loosingRevisions = serializedRevisions.map(function (doc) {
+	          doc._deleted = true;
+	          return doc;
+	        });
+
+	        return pouchdb.put(winningRevision).then(function () {
+	          return pouchdb.bulkDocs(loosingRevisions);
+	        });
+	      });
+	    }
 	  }]);
 	  return UtilsService;
 	}();
 
-	UtilsService.$inject = ['smartId'];
+	UtilsService.$inject = ['$q', 'smartId'];
 
 	var moduleName$1 = 'angularNavData.utils';
 
@@ -752,18 +954,26 @@
 	    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions);
 	    this.replicationFrom;
 	    this.localDB;
+	    this.onChangeCompleteCallbacks = {};
 	    this.onReplicationCompleteCallbacks = {};
 	  }
 
 	  createClass(ProductsService, [{
 	    key: 'startReplication',
-	    value: function startReplication(zone, state) {
+	    value: function startReplication() {
 	      var _this = this;
 
-	      var onReplicationComplete = function onReplicationComplete() {
-	        Object.keys(_this.onReplicationCompleteCallbacks).forEach(function (id) {
-	          return _this.onReplicationCompleteCallbacks[id]();
+	      var onComplete = function onComplete(handler, res) {
+	        Object.keys(_this[handler]).forEach(function (id) {
+	          return _this[handler][id](res);
 	        });
+	      };
+
+	      var onChangeComplete = function onChangeComplete(res) {
+	        return onComplete('onChangeCompleteCallbacks', res);
+	      };
+	      var onReplicationComplete = function onReplicationComplete() {
+	        return onComplete('onReplicationCompleteCallbacks');
 	      };
 
 	      var onReplicationPaused = function onReplicationPaused(err) {
@@ -779,12 +989,26 @@
 	        retry: true
 	      };
 
-	      this.localDB = this.pouchDB('navIntProductsDB');
-	      this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+	      if (!this.localDB) {
+	        this.localDB = this.pouchDB('navIntProductsDB');
+	      }
 
-	      this.replicationFrom.on('paused', onReplicationPaused);
+	      if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
+	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
 
-	      return this.replicationFrom;
+	        this.replicationFrom.on('paused', onReplicationPaused);
+	      }
+
+	      var changeOpts = {
+	        conflicts: true,
+	        include_docs: true
+	      };
+
+	      var handleConflicts = function handleConflicts(change) {
+	        _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB).then(onChangeComplete).catch(onChangeComplete);
+	      };
+
+	      this.localDB.changes(changeOpts).$promise.then(null, null, handleConflicts);
 	    }
 	  }, {
 	    key: 'stopReplication',
@@ -800,6 +1024,24 @@
 	        return;
 	      }
 	      this.onReplicationCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnReplicationComplete',
+	    value: function unregisterOnReplicationComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
+	    }
+	  }, {
+	    key: 'callOnChangeComplete',
+	    value: function callOnChangeComplete(id, callback) {
+	      if (this.onChangeCompleteCallbacks[id]) {
+	        return;
+	      }
+	      this.onChangeCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnChangeComplete',
+	    value: function unregisterOnChangeComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
 	    }
 	  }, {
 	    key: 'allDocs',
@@ -847,7 +1089,7 @@
 	    value: function queryAndUpdateCache() {
 	      var _this = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var query = function query(options) {
 	        var queryOptions = {
@@ -863,7 +1105,7 @@
 	        } else {
 	          queryOptions.ascending = true;
 	          queryOptions.startkey = 'product:';
-	          queryOptions.endkey = 'product:' + '￿';
+	          queryOptions.endkey = 'product:' + '\uFFFF';
 	        }
 
 	        return _this.productsService.allDocs(queryOptions);
@@ -883,7 +1125,7 @@
 	  }, {
 	    key: 'relevant',
 	    value: function relevant() {
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      options.onlyRelevant = true;
 	      return this.all(options);
@@ -893,7 +1135,7 @@
 	    value: function all() {
 	      var _this2 = this;
 
-	      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
 	      var byType = function byType(type, product) {
 	        return product.storageType === type;

@@ -12,8 +12,32 @@ const parseResponse = (response) => {
           .filter(isDefined)
 }
 
+const serialiseDocWithConflictsByProp = (doc, conflicts, prop) => {
+  return [doc].concat(conflicts)
+    .reduce((arr, obj) => {
+      if (obj.ok) {
+        arr.push(obj.ok)
+      } else {
+        arr.push(obj)
+      }
+      return arr
+    }, [])
+    .sort((a, b) => {
+      if (a[prop] && !b[prop]) {
+        return -1
+      }
+      if (!a[prop] && b[prop]) {
+        return 1
+      }
+      let aSecs = new Date(a.updatedAt).getTime()
+      let bSecs = new Date(b.updatedAt).getTime()
+      return bSecs - aSecs // highest first
+    })
+}
+
 class UtilsService {
-  constructor (smartId) {
+  constructor ($q, smartId) {
+    this.$q = $q
     this.smartId = smartId
   }
 
@@ -59,8 +83,35 @@ class UtilsService {
       return index
     }, {})
   }
+
+  checkAndResolveConflicts ({change: { doc: changedDoc }}, pouchdb) {
+    if (!changedDoc._conflicts) {
+      return this.$q.resolve()
+    }
+
+    return pouchdb.get(changedDoc._id, {'open_revs': changedDoc._conflicts})
+      .then(conflictingRevObjs => {
+        const serializedRevisions = serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt')
+
+        const winningRevision = angular.extend({}, serializedRevisions[0], {
+          _rev: changedDoc._rev,
+          _conflicts: []
+        })
+
+        const loosingRevisions = serializedRevisions.map(doc => {
+          doc._deleted = true
+          return doc
+        })
+
+        return pouchdb.put(winningRevision)
+          .then(() => pouchdb.bulkDocs(loosingRevisions))
+      })
+  }
 }
 
-UtilsService.$inject = ['smartId']
+UtilsService.$inject = [
+  '$q',
+  'smartId'
+]
 
 export default UtilsService
