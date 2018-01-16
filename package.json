@@ -12,6 +12,7 @@
   "author": "Patricia Garcia <pat@patriciagarcia.me>",
   "license": "Apache 2.0",
   "dependencies": {
+    "@fielded/van-stock-count-api-tools": "^1.4.0",
     "angular": "^1.5.5"
   },
   "devDependencies": {
