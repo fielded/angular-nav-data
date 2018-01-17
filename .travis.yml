@@ -4,6 +4,8 @@ node_js:
 - 6
 services:
 - couchdb
+before_install:
+- echo "//npm.field.partners/:_authToken=\${NPM_TOKEN}" >> .npmrc
 before_script:
 - npm install
 - ./node_modules/.bin/add-cors-to-couchdb
