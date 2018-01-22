@@ -1,5 +1,3 @@
-import VANApiTools from '@fielded/van-stock-count-api-tools'
-
 const pluckDocs = (item) => {
   return item.doc
 }
@@ -108,10 +106,6 @@ class UtilsService {
         return pouchdb.put(winningRevision)
           .then(() => pouchdb.bulkDocs(loosingRevisions))
       })
-  }
-
-  translate (data, version) {
-    return VANApiTools.translateReport(data, version)
   }
 }
 
