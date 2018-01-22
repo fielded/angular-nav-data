@@ -795,6 +795,384 @@
 
 	ZonesService.$inject = ['$q', 'smartId', 'locationsService'];
 
+	var pluckDocs = function pluckDocs(item) {
+	  return item.doc;
+	};
+
+	var isDefined = function isDefined(doc) {
+	  return typeof doc !== 'undefined';
+	};
+
+	var parseResponse = function parseResponse(response) {
+	  return response.rows.map(pluckDocs).filter(isDefined);
+	};
+
+	var serialiseDocWithConflictsByProp = function serialiseDocWithConflictsByProp(doc, conflicts, prop) {
+	  return [doc].concat(conflicts).reduce(function (arr, obj) {
+	    if (obj.ok) {
+	      arr.push(obj.ok);
+	    } else {
+	      arr.push(obj);
+	    }
+	    return arr;
+	  }, []).sort(function (a, b) {
+	    if (a[prop] && !b[prop]) {
+	      return -1;
+	    }
+	    if (!a[prop] && b[prop]) {
+	      return 1;
+	    }
+	    var aSecs = new Date(a.updatedAt).getTime();
+	    var bSecs = new Date(b.updatedAt).getTime();
+	    return bSecs - aSecs; // highest first
+	  });
+	};
+
+	var UtilsService = function () {
+	  function UtilsService($q, smartId) {
+	    classCallCheck(this, UtilsService);
+
+	    this.$q = $q;
+	    this.smartId = smartId;
+	  }
+
+	  createClass(UtilsService, [{
+	    key: 'allDocs',
+	    value: function allDocs(db, options) {
+	      return db.allDocs(options).then(parseResponse);
+	    }
+	  }, {
+	    key: 'query',
+	    value: function query(db, view, options) {
+	      return db.query(view, options).then(parseResponse);
+	    }
+	  }, {
+	    key: 'callEach',
+	    value: function callEach(callbacks) {
+	      var call = function call(id) {
+	        return callbacks[id]();
+	      };
+	      Object.keys(callbacks).forEach(call);
+	    }
+	  }, {
+	    key: 'isEmptyObject',
+	    value: function isEmptyObject(obj) {
+	      return !Object.keys(obj).length;
+	    }
+	  }, {
+	    key: 'isIndexedCacheEmpty',
+	    value: function isIndexedCacheEmpty(cache, field) {
+	      var isCompletelyEmpty = this.isEmptyObject(cache);
+
+	      if (!isCompletelyEmpty && field) {
+	        return !cache[field] || !cache[field].length;
+	      }
+	      return isCompletelyEmpty;
+	    }
+	  }, {
+	    key: 'toArray',
+	    value: function toArray(obj) {
+	      return Object.keys(obj).reduce(function (array, key) {
+	        return array.concat(obj[key]);
+	      }, []);
+	    }
+	  }, {
+	    key: 'groupByLevel',
+	    value: function groupByLevel(locations, level) {
+	      var _this = this;
+
+	      return locations.reduce(function (index, location) {
+	        var area = _this.smartId.parse(location._id)[level];
+	        index[area] = index[area] || [];
+	        index[area].push(location);
+	        return index;
+	      }, {});
+	    }
+	  }, {
+	    key: 'checkAndResolveConflicts',
+	    value: function checkAndResolveConflicts(_ref, pouchdb) {
+	      var changedDoc = _ref.change.doc;
+
+	      if (!changedDoc._conflicts) {
+	        return this.$q.resolve();
+	      }
+
+	      return pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
+	        var serializedRevisions = serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
+
+	        var winningRevision = angular.extend({}, serializedRevisions[0], {
+	          _rev: changedDoc._rev,
+	          _conflicts: []
+	        });
+
+	        var loosingRevisions = serializedRevisions.map(function (doc) {
+	          doc._deleted = true;
+	          return doc;
+	        });
+
+	        return pouchdb.put(winningRevision).then(function () {
+	          return pouchdb.bulkDocs(loosingRevisions);
+	        });
+	      });
+	    }
+	  }]);
+	  return UtilsService;
+	}();
+
+	UtilsService.$inject = ['$q', 'smartId'];
+
+	var moduleName$1 = 'angularNavData.utils';
+
+	angular$1.module(moduleName$1, ['ngSmartId']).service('angularNavDataUtilsService', UtilsService);
+
+	var moduleName = 'angularNavData.locations';
+
+	angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService).service('zonesService', ZonesService);
+
+	var ProductsService = function () {
+	  function ProductsService($injector, pouchDB, angularNavDataUtilsService) {
+	    classCallCheck(this, ProductsService);
+
+	    var dataModuleRemoteDB = void 0;
+
+	    var pouchDBOptions = {
+	      ajax: {
+	        timeout: replicationConfig.timeout
+	      },
+	      skip_setup: true
+	    };
+
+	    try {
+	      dataModuleRemoteDB = $injector.get('dataModuleRemoteDB');
+	    } catch (e) {
+	      throw new Error('dataModuleRemoteDB should be provided in the data module configuration');
+	    }
+
+	    this.pouchDB = pouchDB;
+	    this.angularNavDataUtilsService = angularNavDataUtilsService;
+
+	    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions);
+	    this.replicationFrom;
+	    this.localDB;
+	    this.onChangeCompleteCallbacks = {};
+	    this.onReplicationCompleteCallbacks = {};
+	  }
+
+	  createClass(ProductsService, [{
+	    key: 'startReplication',
+	    value: function startReplication() {
+	      var _this = this;
+
+	      var onComplete = function onComplete(handler, res) {
+	        Object.keys(_this[handler]).forEach(function (id) {
+	          return _this[handler][id](res);
+	        });
+	      };
+
+	      var onChangeComplete = function onChangeComplete(res) {
+	        return onComplete('onChangeCompleteCallbacks', res);
+	      };
+	      var onReplicationComplete = function onReplicationComplete() {
+	        return onComplete('onReplicationCompleteCallbacks');
+	      };
+
+	      var onReplicationPaused = function onReplicationPaused(err) {
+	        if (!err) {
+	          onReplicationComplete();
+	          _this.stopReplication();
+	        }
+	      };
+
+	      var options = {
+	        filter: 'products/all',
+	        live: true,
+	        retry: true
+	      };
+
+	      if (!this.localDB) {
+	        this.localDB = this.pouchDB('navIntProductsDB');
+	      }
+
+	      if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
+	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
+
+	        this.replicationFrom.on('paused', onReplicationPaused);
+	      }
+
+	      var changeOpts = {
+	        conflicts: true,
+	        include_docs: true
+	      };
+
+	      var handleConflicts = function handleConflicts(change) {
+	        _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB).then(onChangeComplete).catch(onChangeComplete);
+	      };
+
+	      this.localDB.changes(changeOpts).$promise.then(null, null, handleConflicts);
+	    }
+	  }, {
+	    key: 'stopReplication',
+	    value: function stopReplication() {
+	      if (this.replicationFrom && this.replicationFrom.cancel) {
+	        this.replicationFrom.cancel();
+	      }
+	    }
+	  }, {
+	    key: 'callOnReplicationComplete',
+	    value: function callOnReplicationComplete(id, callback) {
+	      if (this.onReplicationCompleteCallbacks[id]) {
+	        return;
+	      }
+	      this.onReplicationCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnReplicationComplete',
+	    value: function unregisterOnReplicationComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
+	    }
+	  }, {
+	    key: 'callOnChangeComplete',
+	    value: function callOnChangeComplete(id, callback) {
+	      if (this.onChangeCompleteCallbacks[id]) {
+	        return;
+	      }
+	      this.onChangeCompleteCallbacks[id] = callback;
+	    }
+	  }, {
+	    key: 'unregisterOnChangeComplete',
+	    value: function unregisterOnChangeComplete(id) {
+	      delete this.onReplicationCompleteCallbacks[id];
+	    }
+	  }, {
+	    key: 'allDocs',
+	    value: function allDocs(options) {
+	      var db = this.localDB || this.remoteDB;
+	      return this.angularNavDataUtilsService.allDocs(db, options);
+	    }
+	  }]);
+	  return ProductsService;
+	}();
+
+	ProductsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
+
+	var ProductListService = function () {
+	  function ProductListService($q, productsService, angularNavDataUtilsService) {
+	    classCallCheck(this, ProductListService);
+
+	    this.cachedProducts = [];
+	    this.relevantIds = [];
+	    this.registeredOnCacheUpdatedCallbacks = {};
+
+	    this.$q = $q;
+	    this.productsService = productsService;
+	    this.utils = angularNavDataUtilsService;
+
+	    // For state dashboard: products replicated locally and only a set of products is relevant
+	    var onReplicationComplete = this.relevant.bind(this, { bustCache: true });
+	    this.productsService.callOnReplicationComplete('products-list-service', onReplicationComplete);
+	  }
+
+	  createClass(ProductListService, [{
+	    key: 'registerOnCacheUpdatedCallback',
+	    value: function registerOnCacheUpdatedCallback(id, callback) {
+	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
+	        this.registeredOnCacheUpdatedCallbacks[id] = callback;
+	      }
+	    }
+	  }, {
+	    key: 'unregisterOnCacheUpdatedCallback',
+	    value: function unregisterOnCacheUpdatedCallback(id) {
+	      delete this.registeredOnCacheUpdatedCallbacks[id];
+	    }
+	  }, {
+	    key: 'queryAndUpdateCache',
+	    value: function queryAndUpdateCache() {
+	      var _this = this;
+
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+	      var query = function query(options) {
+	        var queryOptions = {
+	          'include_docs': true
+	        };
+
+	        if (options.onlyRelevant) {
+	          if (!_this.relevantIds.length) {
+	            // no product is relevant
+	            return _this.$q.when([]);
+	          }
+	          queryOptions.keys = _this.relevantIds;
+	        } else {
+	          queryOptions.ascending = true;
+	          queryOptions.startkey = 'product:';
+	          queryOptions.endkey = 'product:' + '\uFFFF';
+	        }
+
+	        return _this.productsService.allDocs(queryOptions);
+	      };
+
+	      var updateCache = function updateCache(docs) {
+	        _this.cachedProducts = docs;
+	        // This makes the assumption that the cache only contains an empty list
+	        // of products when the replication is not yet done
+	        if (_this.cachedProducts.length) {
+	          _this.utils.callEach(_this.registeredOnCacheUpdatedCallbacks);
+	        }
+	      };
+
+	      return query(options).then(updateCache);
+	    }
+	  }, {
+	    key: 'relevant',
+	    value: function relevant() {
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+	      options.onlyRelevant = true;
+	      return this.all(options);
+	    }
+	  }, {
+	    key: 'all',
+	    value: function all() {
+	      var _this2 = this;
+
+	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+	      var byType = function byType(type, product) {
+	        return product.storageType === type;
+	      };
+
+	      var prepareRes = function prepareRes() {
+	        if (options.byType) {
+	          return {
+	            dry: _this2.cachedProducts.filter(byType.bind(null, 'dry')),
+	            frozen: _this2.cachedProducts.filter(byType.bind(null, 'frozen'))
+	          };
+	        }
+	        return _this2.cachedProducts;
+	      };
+
+	      if (this.cachedProducts.length && !options.bustCache) {
+	        return this.$q.when(prepareRes());
+	      }
+
+	      return this.queryAndUpdateCache(options).then(prepareRes);
+	    }
+	  }, {
+	    key: 'setRelevant',
+	    value: function setRelevant(relevantIds) {
+	      this.relevantIds = relevantIds;
+	      this.relevant({ bustCache: true });
+	    }
+	  }]);
+	  return ProductListService;
+	}();
+
+	ProductListService.$inject = ['$q', 'productsService', 'angularNavDataUtilsService'];
+
+	var moduleName$2 = 'angularNavData.products';
+
+	angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productListService', ProductListService);
+
 	/**
 	 * @category Common Helpers
 	 * @summary Is the given argument an instance of Date?
@@ -6808,7 +7186,7 @@
 	  return locationIdToProperties(id.split(':week:')[0]);
 	}
 
-	var __moduleExports$163 = locationIdToSubmitProperties$1;
+	var __moduleExports$164 = locationIdToSubmitProperties$1;
 
 	var locationIdToProperties$2 = __moduleExports$162;
 
@@ -6844,10 +7222,158 @@
 	  }
 	}
 
-	var __moduleExports$160 = docToStockCountRecord;
+	var __moduleExports$163 = shouldTrackBatches$1;
+
+	var locationIdToSubmitProperties = __moduleExports$164;
+
+	function shouldTrackBatches$1(params) {
+	  var location = params.location,
+	      product = params.product;
+
+
+	  if (location && !locationIdToSubmitProperties(location.id).submitsBatchedCounts) {
+	    return false;
+	  }
+
+	  if (product.productType === 'dry') {
+	    return false;
+	  }
+
+	  if (product.productType === 'diluent') {
+	    return false;
+	  }
+
+	  return true;
+	}
+
+	var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+	function createCommonjsModule(fn, module) {
+		return module = { exports: {} }, fn(module, module.exports), module.exports;
+	}
+
+	var __moduleExports$165 = createCommonjsModule(function (module, exports) {
+	!function(e,n){"object"==typeof exports&&"undefined"!=typeof module?module.exports=n():"function"==typeof undefined&&undefined.amd?undefined(n):e.dlv=n()}(commonjsGlobal,function(){function e(e,n,t,o){for(o=0,n=n.split?n.split("."):n;e&&o<n.length;)e=e[n[o++]];return void 0===e?t:e}return e});
+	});
+
+	var __moduleExports$166 = {
+	  NOT_STARTED: 'notStarted',
+	  IN_PROGRESS: 'inProgress',
+	  COMPLETE: 'complete'
+	};
 
 	var stockCountIdToLocationProperties = __moduleExports$161;
-	var locationIdToSubmitProperties = __moduleExports$163;
+	var shouldTrackBatches = __moduleExports$163;
+	var dlv = __moduleExports$165;
+
+	var _require$1 = __moduleExports$166;
+	var NOT_STARTED = _require$1.NOT_STARTED;
+	var IN_PROGRESS = _require$1.IN_PROGRESS;
+	var COMPLETE = _require$1.COMPLETE;
+	var reportProgress = function reportProgress(doc, relevantProducts) {
+	  // report has no `stock` or `stock: {}` => hasn't been started
+	  if (!(doc.stock && Object.keys(doc.stock).length)) {
+	    return NOT_STARTED;
+	  }
+
+	  var locationId = stockCountIdToLocationProperties(doc._id).id;
+	  // is in progress when `stock` field contains a non empty object
+	  // and one of the following is true
+	  var _iteratorNormalCompletion = true;
+	  var _didIteratorError = false;
+	  var _iteratorError = undefined;
+
+	  try {
+	    for (var _iterator = relevantProducts[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+	      var product = _step.value;
+
+	      var productStock = doc.stock[product._id];
+	      // the counts for any product are missing
+	      if (!productStock) {
+	        return IN_PROGRESS;
+	      }
+
+	      if (!Object.keys(productStock).length) {
+	        return IN_PROGRESS;
+	      }
+
+	      var isBatchTrackedForProduct = shouldTrackBatches({
+	        product: product,
+	        location: { id: locationId }
+	      });
+
+	      // is missing an `amount` for any non batch tracking product
+	      if (!isBatchTrackedForProduct) {
+	        if (typeof dlv(productStock, 'amount') === 'undefined') {
+	          return IN_PROGRESS;
+	        }
+	        continue;
+	      }
+
+	      var batches = dlv(productStock, 'batches', {});
+	      // is missing `batches` for any batch tracking product
+	      if (!Object.keys(batches).length) {
+	        return IN_PROGRESS;
+	      }
+
+	      // is missing `amount` or is not `checked` for any batch in a batch tracking product
+	      var _iteratorNormalCompletion2 = true;
+	      var _didIteratorError2 = false;
+	      var _iteratorError2 = undefined;
+
+	      try {
+	        for (var _iterator2 = Object.keys(batches)[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+	          var batchId = _step2.value;
+
+	          var batch = batches[batchId];
+	          if (typeof batch.amount === 'undefined') {
+	            return IN_PROGRESS;
+	          }
+	          if (!batch.checked) {
+	            return IN_PROGRESS;
+	          }
+	        }
+	      } catch (err) {
+	        _didIteratorError2 = true;
+	        _iteratorError2 = err;
+	      } finally {
+	        try {
+	          if (!_iteratorNormalCompletion2 && _iterator2.return) {
+	            _iterator2.return();
+	          }
+	        } finally {
+	          if (_didIteratorError2) {
+	            throw _iteratorError2;
+	          }
+	        }
+	      }
+	    }
+	  } catch (err) {
+	    _didIteratorError = true;
+	    _iteratorError = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion && _iterator.return) {
+	        _iterator.return();
+	      }
+	    } finally {
+	      if (_didIteratorError) {
+	        throw _iteratorError;
+	      }
+	    }
+	  }
+
+	  return COMPLETE;
+	};
+
+	var __moduleExports$160 = reportProgress;
+
+	var __moduleExports$167 = docToStockCountRecord;
+
+	var stockCountIdToLocationProperties$2 = __moduleExports$161;
+	var locationIdToSubmitProperties$2 = __moduleExports$164;
+	var shouldTrackBatches$2 = __moduleExports$163;
+	var reportProgress$1 = __moduleExports$160;
 
 	var stockCountIdToDateProps = function stockCountIdToDateProps(id) {
 	  var reportingPeriod = id.split(':week:')[1].split(':')[0];
@@ -6910,7 +7436,46 @@
 	  }, {});
 	};
 
+	var addMissingProductsToStock = function addMissingProductsToStock(doc, products) {
+	  var stockWithMissingProducts = function stockWithMissingProducts() {
+	    var stock = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+	    var locationId = arguments[1];
+	    var products = arguments[2];
+
+	    return products.reduce(function (withProducts, product) {
+	      var stockDefault = { batches: {} };
+	      var areBatchesTracked = shouldTrackBatches$2({
+	        product: product,
+	        location: { id: locationId }
+	      });
+	      if (!areBatchesTracked) {
+	        stockDefault = {};
+	      }
+
+	      withProducts[product._id] = Object.assign({}, stockDefault, stock[product._id]);
+	      return withProducts;
+	    }, {});
+	  };
+
+	  var locationProps = stockCountIdToLocationProperties$2(doc._id);
+	  var locationId = locationProps.id;
+	  doc.stock = stockWithMissingProducts(doc.stock, locationId, products);
+	  return doc;
+	};
+
 	function docToStockCountRecord(doc) {
+	  var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+	  var decorate = opts.decorate,
+	      products = opts.products;
+
+	  if (decorate && products) {
+	    doc.progress = {
+	      status: reportProgress$1(doc, products)
+	    };
+
+	    addMissingProductsToStock(doc, products);
+	  }
+
 	  var _id = doc._id,
 	      stock = doc.stock,
 	      createdAt = doc.createdAt,
@@ -6918,12 +7483,11 @@
 	      updatedBy = doc.updatedBy,
 	      createdBy = doc.createdBy,
 	      submittedAt = doc.submittedAt,
-	      isComplete = doc.isComplete,
-	      isInProgress = doc.isInProgress;
+	      progress = doc.progress;
 
 	  var stockCount = Object.assign({}, {
 	    _id: _id,
-	    location: stockCountIdToLocationProperties(_id),
+	    location: stockCountIdToLocationProperties$2(_id),
 	    date: stockCountIdToDateProps(_id)
 	  });
 	  if (createdAt) {
@@ -6938,17 +7502,14 @@
 	  if (stock) {
 	    stockCount.stock = stockWithAmounts(stock);
 	  }
-	  if (typeof isComplete !== 'undefined') {
-	    stockCount.isComplete = isComplete;
+	  if (typeof progress !== 'undefined') {
+	    stockCount.progress = progress;
 	  }
-	  if (typeof isInProgress !== 'undefined') {
-	    stockCount.isInProgress = isInProgress;
-	  }
-	  stockCount.submitConfig = locationIdToSubmitProperties(stockCount.location.id);
+	  stockCount.submitConfig = locationIdToSubmitProperties$2(stockCount.location.id);
 	  return stockCount;
 	}
 
-	var __moduleExports$165 = locationIdToParent$1;
+	var __moduleExports$169 = locationIdToParent$1;
 
 	var locationIdToProperties$3 = __moduleExports$162;
 
@@ -6964,9 +7525,9 @@
 	  }
 	}
 
-	var __moduleExports$164 = formatReportsByLevel;
+	var __moduleExports$168 = formatReportsByLevel;
 
-	var locationIdToParent = __moduleExports$165;
+	var locationIdToParent = __moduleExports$169;
 
 	var levels = ['national', 'zone', 'state', 'lga'];
 
@@ -7004,31 +7565,7 @@
 	  }, byLevel);
 	}
 
-	var __moduleExports$166 = shouldTrackBatches;
-
-	var locationIdToSubmitProperties$2 = __moduleExports$163;
-
-	function shouldTrackBatches(params) {
-	  var location = params.location,
-	      product = params.product;
-
-
-	  if (location && !locationIdToSubmitProperties$2(location.id).submitsBatchedCounts) {
-	    return false;
-	  }
-
-	  if (product.productType === 'dry') {
-	    return false;
-	  }
-
-	  if (product.productType === 'diluent') {
-	    return false;
-	  }
-
-	  return true;
-	}
-
-	var __moduleExports$167 = toStockCountId;
+	var __moduleExports$170 = toStockCountId;
 
 	var dateToReportingPeriod$1 = __moduleExports;
 	var locationIdToProperties$4 = __moduleExports$162;
@@ -7054,20 +7591,10 @@
 	  return 'zone:' + locationProps.zone + ':state:' + locationProps.state + ':week:' + week + ':lga:' + locationProps.lga;
 	}
 
-	var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+	var __moduleExports$171 = translateReport;
 
-	function createCommonjsModule(fn, module) {
-		return module = { exports: {} }, fn(module, module.exports), module.exports;
-	}
-
-	var __moduleExports$169 = createCommonjsModule(function (module, exports) {
-	!function(e,n){"object"==typeof exports&&"undefined"!=typeof module?module.exports=n():"function"==typeof undefined&&undefined.amd?undefined(n):e.dlv=n()}(commonjsGlobal,function(){function e(e,n,t,o){for(o=0,n=n.split?n.split("."):n;e&&o<n.length;)e=e[n[o++]];return void 0===e?t:e}return e});
-	});
-
-	var __moduleExports$168 = translateReport;
-
-	var docToStockCountRecord$1 = __moduleExports$160;
-	var dlv = __moduleExports$169;
+	var docToStockCountRecord$1 = __moduleExports$167;
+	var dlv$1 = __moduleExports$165;
 
 	var toOldFormatUnbatchedStock = function toOldFormatUnbatchedStock(stock) {
 	  return Object.keys(stock).reduce(function (unbatched, productId) {
@@ -7084,7 +7611,7 @@
 	};
 
 	function translateReport(report, version) {
-	  var reportVersion = dlv(report, 'version', '1.0.0');
+	  var reportVersion = dlv$1(report, 'version', '1.0.0');
 	  if (reportVersion === '2.0.0' && version === '1.0.0') {
 	    var stockCount = docToStockCountRecord$1(report);
 
@@ -7159,15 +7686,16 @@
 	}
 
 	var _dateToReportingPeriod = __moduleExports;
-	var _docToStockCountRecord = __moduleExports$160;
-	var _formatReportsByLevel = __moduleExports$164;
-	var _locationIdToParent = __moduleExports$165;
+	var _reportProgress = __moduleExports$160;
+	var _docToStockCountRecord = __moduleExports$167;
+	var _formatReportsByLevel = __moduleExports$168;
+	var _locationIdToParent = __moduleExports$169;
 	var _locationIdToProperties = __moduleExports$162;
-	var _locationIdToSubmitProperties = __moduleExports$163;
-	var _shouldTrackBatches = __moduleExports$166;
+	var _locationIdToSubmitProperties = __moduleExports$164;
+	var _shouldTrackBatches = __moduleExports$163;
 	var _stockCountIdToLocationProperties = __moduleExports$161;
-	var _toStockCountId = __moduleExports$167;
-	var _translateReport = __moduleExports$168;
+	var _toStockCountId = __moduleExports$170;
+	var _translateReport = __moduleExports$171;
 
 	// not all functions are called through index.js in tests so istanbul complains
 	/* istanbul ignore next */
@@ -7175,8 +7703,11 @@
 	  dateToReportingPeriod: function dateToReportingPeriod(params) {
 	    return _dateToReportingPeriod(params);
 	  },
-	  docToStockCountRecord: function docToStockCountRecord(params) {
-	    return _docToStockCountRecord(params);
+	  reportProgress: function reportProgress(doc, relevantProducts) {
+	    return _reportProgress(doc, relevantProducts);
+	  },
+	  docToStockCountRecord: function docToStockCountRecord(params, opts) {
+	    return _docToStockCountRecord(params, opts);
 	  },
 	  formatReportsByLevel: function formatReportsByLevel(params) {
 	    return _formatReportsByLevel(params);
@@ -7204,389 +7735,24 @@
 	  }
 	};
 
-	var pluckDocs = function pluckDocs(item) {
-	  return item.doc;
-	};
-
-	var isDefined = function isDefined(doc) {
-	  return typeof doc !== 'undefined';
-	};
-
-	var parseResponse = function parseResponse(response) {
-	  return response.rows.map(pluckDocs).filter(isDefined);
-	};
-
-	var serialiseDocWithConflictsByProp = function serialiseDocWithConflictsByProp(doc, conflicts, prop) {
-	  return [doc].concat(conflicts).reduce(function (arr, obj) {
-	    if (obj.ok) {
-	      arr.push(obj.ok);
-	    } else {
-	      arr.push(obj);
-	    }
-	    return arr;
-	  }, []).sort(function (a, b) {
-	    if (a[prop] && !b[prop]) {
-	      return -1;
-	    }
-	    if (!a[prop] && b[prop]) {
-	      return 1;
-	    }
-	    var aSecs = new Date(a.updatedAt).getTime();
-	    var bSecs = new Date(b.updatedAt).getTime();
-	    return bSecs - aSecs; // highest first
-	  });
-	};
-
-	var UtilsService = function () {
-	  function UtilsService($q, smartId) {
-	    classCallCheck(this, UtilsService);
-
-	    this.$q = $q;
-	    this.smartId = smartId;
+	var TranslatorService = function () {
+	  function TranslatorService() {
+	    classCallCheck(this, TranslatorService);
 	  }
 
-	  createClass(UtilsService, [{
-	    key: 'allDocs',
-	    value: function allDocs(db, options) {
-	      return db.allDocs(options).then(parseResponse);
-	    }
-	  }, {
-	    key: 'query',
-	    value: function query(db, view, options) {
-	      return db.query(view, options).then(parseResponse);
-	    }
-	  }, {
-	    key: 'callEach',
-	    value: function callEach(callbacks) {
-	      var call = function call(id) {
-	        return callbacks[id]();
-	      };
-	      Object.keys(callbacks).forEach(call);
-	    }
-	  }, {
-	    key: 'isEmptyObject',
-	    value: function isEmptyObject(obj) {
-	      return !Object.keys(obj).length;
-	    }
-	  }, {
-	    key: 'isIndexedCacheEmpty',
-	    value: function isIndexedCacheEmpty(cache, field) {
-	      var isCompletelyEmpty = this.isEmptyObject(cache);
-
-	      if (!isCompletelyEmpty && field) {
-	        return !cache[field] || !cache[field].length;
-	      }
-	      return isCompletelyEmpty;
-	    }
-	  }, {
-	    key: 'toArray',
-	    value: function toArray(obj) {
-	      return Object.keys(obj).reduce(function (array, key) {
-	        return array.concat(obj[key]);
-	      }, []);
-	    }
-	  }, {
-	    key: 'groupByLevel',
-	    value: function groupByLevel(locations, level) {
-	      var _this = this;
-
-	      return locations.reduce(function (index, location) {
-	        var area = _this.smartId.parse(location._id)[level];
-	        index[area] = index[area] || [];
-	        index[area].push(location);
-	        return index;
-	      }, {});
-	    }
-	  }, {
-	    key: 'checkAndResolveConflicts',
-	    value: function checkAndResolveConflicts(_ref, pouchdb) {
-	      var changedDoc = _ref.change.doc;
-
-	      if (!changedDoc._conflicts) {
-	        return this.$q.resolve();
-	      }
-
-	      return pouchdb.get(changedDoc._id, { 'open_revs': changedDoc._conflicts }).then(function (conflictingRevObjs) {
-	        var serializedRevisions = serialiseDocWithConflictsByProp(changedDoc, conflictingRevObjs, 'updatedAt');
-
-	        var winningRevision = angular.extend({}, serializedRevisions[0], {
-	          _rev: changedDoc._rev,
-	          _conflicts: []
-	        });
-
-	        var loosingRevisions = serializedRevisions.map(function (doc) {
-	          doc._deleted = true;
-	          return doc;
-	        });
-
-	        return pouchdb.put(winningRevision).then(function () {
-	          return pouchdb.bulkDocs(loosingRevisions);
-	        });
-	      });
-	    }
-	  }, {
+	  createClass(TranslatorService, [{
 	    key: 'translate',
 	    value: function translate(data, version) {
 	      return index.translateReport(data, version);
 	    }
 	  }]);
-	  return UtilsService;
+	  return TranslatorService;
 	}();
 
-	UtilsService.$inject = ['$q', 'smartId'];
+	var moduleName$3 = 'angularNavData.translator';
 
-	var moduleName$1 = 'angularNavData.utils';
+	angular$1.module(moduleName$3, []).service('translatorService', TranslatorService);
 
-	angular$1.module(moduleName$1, ['ngSmartId']).service('angularNavDataUtilsService', UtilsService);
-
-	var moduleName = 'angularNavData.locations';
-
-	angular$1.module(moduleName, [moduleName$1, 'ngSmartId', 'pouchdb']).service('locationsService', LocationsService).service('lgasService', LgasService).service('statesService', StatesService).service('zonesService', ZonesService);
-
-	var ProductsService = function () {
-	  function ProductsService($injector, pouchDB, angularNavDataUtilsService) {
-	    classCallCheck(this, ProductsService);
-
-	    var dataModuleRemoteDB = void 0;
-
-	    var pouchDBOptions = {
-	      ajax: {
-	        timeout: replicationConfig.timeout
-	      },
-	      skip_setup: true
-	    };
-
-	    try {
-	      dataModuleRemoteDB = $injector.get('dataModuleRemoteDB');
-	    } catch (e) {
-	      throw new Error('dataModuleRemoteDB should be provided in the data module configuration');
-	    }
-
-	    this.pouchDB = pouchDB;
-	    this.angularNavDataUtilsService = angularNavDataUtilsService;
-
-	    this.remoteDB = this.pouchDB(dataModuleRemoteDB, pouchDBOptions);
-	    this.replicationFrom;
-	    this.localDB;
-	    this.onChangeCompleteCallbacks = {};
-	    this.onReplicationCompleteCallbacks = {};
-	  }
-
-	  createClass(ProductsService, [{
-	    key: 'startReplication',
-	    value: function startReplication() {
-	      var _this = this;
-
-	      var onComplete = function onComplete(handler, res) {
-	        Object.keys(_this[handler]).forEach(function (id) {
-	          return _this[handler][id](res);
-	        });
-	      };
-
-	      var onChangeComplete = function onChangeComplete(res) {
-	        return onComplete('onChangeCompleteCallbacks', res);
-	      };
-	      var onReplicationComplete = function onReplicationComplete() {
-	        return onComplete('onReplicationCompleteCallbacks');
-	      };
-
-	      var onReplicationPaused = function onReplicationPaused(err) {
-	        if (!err) {
-	          onReplicationComplete();
-	          _this.stopReplication();
-	        }
-	      };
-
-	      var options = {
-	        filter: 'products/all',
-	        live: true,
-	        retry: true
-	      };
-
-	      if (!this.localDB) {
-	        this.localDB = this.pouchDB('navIntProductsDB');
-	      }
-
-	      if (!this.replicationFrom || this.replicationFrom.state === 'cancelled') {
-	        this.replicationFrom = this.localDB.replicate.from(this.remoteDB, options);
-
-	        this.replicationFrom.on('paused', onReplicationPaused);
-	      }
-
-	      var changeOpts = {
-	        conflicts: true,
-	        include_docs: true
-	      };
-
-	      var handleConflicts = function handleConflicts(change) {
-	        _this.angularNavDataUtilsService.checkAndResolveConflicts(change, _this.localDB).then(onChangeComplete).catch(onChangeComplete);
-	      };
-
-	      this.localDB.changes(changeOpts).$promise.then(null, null, handleConflicts);
-	    }
-	  }, {
-	    key: 'stopReplication',
-	    value: function stopReplication() {
-	      if (this.replicationFrom && this.replicationFrom.cancel) {
-	        this.replicationFrom.cancel();
-	      }
-	    }
-	  }, {
-	    key: 'callOnReplicationComplete',
-	    value: function callOnReplicationComplete(id, callback) {
-	      if (this.onReplicationCompleteCallbacks[id]) {
-	        return;
-	      }
-	      this.onReplicationCompleteCallbacks[id] = callback;
-	    }
-	  }, {
-	    key: 'unregisterOnReplicationComplete',
-	    value: function unregisterOnReplicationComplete(id) {
-	      delete this.onReplicationCompleteCallbacks[id];
-	    }
-	  }, {
-	    key: 'callOnChangeComplete',
-	    value: function callOnChangeComplete(id, callback) {
-	      if (this.onChangeCompleteCallbacks[id]) {
-	        return;
-	      }
-	      this.onChangeCompleteCallbacks[id] = callback;
-	    }
-	  }, {
-	    key: 'unregisterOnChangeComplete',
-	    value: function unregisterOnChangeComplete(id) {
-	      delete this.onReplicationCompleteCallbacks[id];
-	    }
-	  }, {
-	    key: 'allDocs',
-	    value: function allDocs(options) {
-	      var db = this.localDB || this.remoteDB;
-	      return this.angularNavDataUtilsService.allDocs(db, options);
-	    }
-	  }]);
-	  return ProductsService;
-	}();
-
-	ProductsService.$inject = ['$injector', 'pouchDB', 'angularNavDataUtilsService'];
-
-	var ProductListService = function () {
-	  function ProductListService($q, productsService, angularNavDataUtilsService) {
-	    classCallCheck(this, ProductListService);
-
-	    this.cachedProducts = [];
-	    this.relevantIds = [];
-	    this.registeredOnCacheUpdatedCallbacks = {};
-
-	    this.$q = $q;
-	    this.productsService = productsService;
-	    this.utils = angularNavDataUtilsService;
-
-	    // For state dashboard: products replicated locally and only a set of products is relevant
-	    var onReplicationComplete = this.relevant.bind(this, { bustCache: true });
-	    this.productsService.callOnReplicationComplete('products-list-service', onReplicationComplete);
-	  }
-
-	  createClass(ProductListService, [{
-	    key: 'registerOnCacheUpdatedCallback',
-	    value: function registerOnCacheUpdatedCallback(id, callback) {
-	      if (!this.registeredOnCacheUpdatedCallbacks[id]) {
-	        this.registeredOnCacheUpdatedCallbacks[id] = callback;
-	      }
-	    }
-	  }, {
-	    key: 'unregisterOnCacheUpdatedCallback',
-	    value: function unregisterOnCacheUpdatedCallback(id) {
-	      delete this.registeredOnCacheUpdatedCallbacks[id];
-	    }
-	  }, {
-	    key: 'queryAndUpdateCache',
-	    value: function queryAndUpdateCache() {
-	      var _this = this;
-
-	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-	      var query = function query(options) {
-	        var queryOptions = {
-	          'include_docs': true
-	        };
-
-	        if (options.onlyRelevant) {
-	          if (!_this.relevantIds.length) {
-	            // no product is relevant
-	            return _this.$q.when([]);
-	          }
-	          queryOptions.keys = _this.relevantIds;
-	        } else {
-	          queryOptions.ascending = true;
-	          queryOptions.startkey = 'product:';
-	          queryOptions.endkey = 'product:' + '\uFFFF';
-	        }
-
-	        return _this.productsService.allDocs(queryOptions);
-	      };
-
-	      var updateCache = function updateCache(docs) {
-	        _this.cachedProducts = docs;
-	        // This makes the assumption that the cache only contains an empty list
-	        // of products when the replication is not yet done
-	        if (_this.cachedProducts.length) {
-	          _this.utils.callEach(_this.registeredOnCacheUpdatedCallbacks);
-	        }
-	      };
-
-	      return query(options).then(updateCache);
-	    }
-	  }, {
-	    key: 'relevant',
-	    value: function relevant() {
-	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-	      options.onlyRelevant = true;
-	      return this.all(options);
-	    }
-	  }, {
-	    key: 'all',
-	    value: function all() {
-	      var _this2 = this;
-
-	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-	      var byType = function byType(type, product) {
-	        return product.storageType === type;
-	      };
-
-	      var prepareRes = function prepareRes() {
-	        if (options.byType) {
-	          return {
-	            dry: _this2.cachedProducts.filter(byType.bind(null, 'dry')),
-	            frozen: _this2.cachedProducts.filter(byType.bind(null, 'frozen'))
-	          };
-	        }
-	        return _this2.cachedProducts;
-	      };
-
-	      if (this.cachedProducts.length && !options.bustCache) {
-	        return this.$q.when(prepareRes());
-	      }
-
-	      return this.queryAndUpdateCache(options).then(prepareRes);
-	    }
-	  }, {
-	    key: 'setRelevant',
-	    value: function setRelevant(relevantIds) {
-	      this.relevantIds = relevantIds;
-	      this.relevant({ bustCache: true });
-	    }
-	  }]);
-	  return ProductListService;
-	}();
-
-	ProductListService.$inject = ['$q', 'productsService', 'angularNavDataUtilsService'];
-
-	var moduleName$2 = 'angularNavData.products';
-
-	angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productListService', ProductListService);
-
-	angular$1.module('angularNavData', [moduleName, moduleName$2]);
+	angular$1.module('angularNavData', [moduleName, moduleName$2, moduleName$3]);
 
 }(angular));
