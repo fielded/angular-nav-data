@@ -1,14 +1,15 @@
 sudo: false
 language: node_js
 node_js:
-- 6
+  - '6.11.3'
 services:
-- couchdb
+  - couchdb
+before_install:
+  - echo "//npm.field.partners/:_authToken=\${NPM_TOKEN}" >> .npmrc
+  - npm i -g npm@5.4.2
 before_script:
-- npm install
-- ./node_modules/.bin/add-cors-to-couchdb
-script:
-- npm test
+  - npm install
+  - ./node_modules/.bin/add-cors-to-couchdb
 cache:
   directories:
   - node_modules
