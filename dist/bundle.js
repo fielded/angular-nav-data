@@ -1173,6 +1173,12 @@
 
 	angular$1.module(moduleName$2, [moduleName$1, 'pouchdb']).service('productsService', ProductsService).service('productListService', ProductListService);
 
+	var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+	function createCommonjsModule(fn, module) {
+		return module = { exports: {} }, fn(module, module.exports), module.exports;
+	}
+
 	/**
 	 * @category Common Helpers
 	 * @summary Is the given argument an instance of Date?
@@ -4257,7 +4263,7 @@
 	 * )
 	 * //=> '2-a de julio 2014'
 	 */
-	function format$1 (dirtyDate, dirtyFormatStr, dirtyOptions) {
+	function format (dirtyDate, dirtyFormatStr, dirtyOptions) {
 	  var formatStr = dirtyFormatStr ? String(dirtyFormatStr) : 'YYYY-MM-DDTHH:mm:ss.SSSZ'
 	  var options = dirtyOptions || {}
 
@@ -4494,7 +4500,7 @@
 	  return output
 	}
 
-	var __moduleExports$66 = format$1
+	var __moduleExports$66 = format
 
 	var parse$38 = __moduleExports$3
 
@@ -6324,7 +6330,7 @@
 	 * var result = setDay(new Date(2014, 8, 1), 0, {weekStartsOn: 1})
 	 * //=> Sun Sep 07 2014 00:00:00
 	 */
-	function setDay$1 (dirtyDate, dirtyDay, dirtyOptions) {
+	function setDay (dirtyDate, dirtyDay, dirtyOptions) {
 	  var weekStartsOn = dirtyOptions ? (Number(dirtyOptions.weekStartsOn) || 0) : 0
 	  var date = parse$79(dirtyDate)
 	  var day = Number(dirtyDay)
@@ -6337,7 +6343,7 @@
 	  return addDays$2(date, diff)
 	}
 
-	var __moduleExports$136 = setDay$1
+	var __moduleExports$136 = setDay
 
 	var parse$80 = __moduleExports$3
 
@@ -7118,23 +7124,198 @@
 	  subYears: __moduleExports$159
 	}
 
-	var _require = __moduleExports$1;
-	var format = _require.format;
-	var setDay = _require.setDay;
-	var dateToReportingPeriod = function dateToReportingPeriod() {
-	  var date = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new Date().toISOString();
-
-	  var friday = setDay(new Date(date), 4);
-	  return format(friday, 'YYYY[-W]WW');
-	};
-
-	var __moduleExports = dateToReportingPeriod;
+	var __moduleExports = createCommonjsModule(function (module, exports) {
+	'use strict';
 
 	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
 
-	var __moduleExports$162 = locationIdToProperties$1;
+	var _require = __moduleExports$1,
+	    setDay = _require.setDay,
+	    setISOWeek = _require.setISOWeek,
+	    setISOYear = _require.setISOYear,
+	    setYear = _require.setYear,
+	    subWeeks = _require.subWeeks,
+	    addWeeks = _require.addWeeks,
+	    setMonth = _require.setMonth,
+	    subMonths = _require.subMonths,
+	    addMonths = _require.addMonths,
+	    format = _require.format;
 
-	function locationIdToProperties$1(id) {
+	var weeklyReportingPeriodFormat = 'GGGG[-W]WW';
+	var bimonthlyReportingPeriodFormat = 'GGGG[-M]MM';
+	var snapshotDateFormat = 'YYYY-MM-DD';
+
+	exports.reportIdToReportingPeriodProps = function (periodType, id) {
+	  switch (periodType) {
+	    case 'weekly':
+	      {
+	        var _id$match = id.match(/:week:(([0-9]{4})-[W]([0-9]{1,2}))/),
+	            _id$match2 = _slicedToArray(_id$match, 4),
+	            reportingPeriod = _id$match2[1],
+	            year = _id$match2[2],
+	            week = _id$match2[3];
+
+	        // Compensate for the stock reports that have one-digit week number (2017-W5, 2017-W6)
+
+
+	        if (/W[0-9]$/.test(reportingPeriod)) {
+	          reportingPeriod = reportingPeriod.replace('W', 'W0');
+	        }
+
+	        return {
+	          year: parseInt(year, 10),
+	          week: parseInt(week, 10),
+	          reportingPeriod: reportingPeriod
+	        };
+	      }
+	    case 'bimonthly':
+	      {
+	        var _id$match3 = id.match(/:bimonth:(([0-9]{4})-[M]([0-9]{2}))/),
+	            _id$match4 = _slicedToArray(_id$match3, 4),
+	            _reportingPeriod = _id$match4[1],
+	            _year = _id$match4[2],
+	            month = _id$match4[3];
+
+	        return {
+	          year: parseInt(_year, 10),
+	          month: parseInt(month, 10),
+	          reportingPeriod: _reportingPeriod
+	        };
+	      }
+	    default:
+	      throw new Error('Unkown reporting period type: ' + periodType);
+	  }
+	};
+
+	exports.dateToReportingPeriod = function dateToReportingPeriod(periodType) {
+	  var date = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : new Date().toISOString();
+
+	  switch (periodType) {
+	    case 'weekly':
+	      if (date.includes('-W')) {
+	        // date is already a reporting period
+	        return date;
+	      }
+	      var friday = setDay(new Date(date), 4);
+	      return format(friday, weeklyReportingPeriodFormat);
+	    case 'bimonthly':
+	      if (date.includes('-M')) {
+	        // date is already a reporting period
+	        return date;
+	      }
+	      var d = new Date(date);
+	      var m = d.getMonth();
+	      m = m - m % 2;
+	      return format(setMonth(d, m), bimonthlyReportingPeriodFormat);
+	    default:
+	      throw new Error('Unkown reporting period type: ' + periodType);
+	  }
+	};
+
+	exports.previousReportingPeriod = function previousReportingPeriod(periodType) {
+	  var period = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+
+	  period = period || exports.dateToReportingPeriod(periodType);
+	  switch (periodType) {
+	    case 'weekly':
+	      {
+	        var _period$split = period.split('-W'),
+	            _period$split2 = _slicedToArray(_period$split, 2),
+	            year = _period$split2[0],
+	            week = _period$split2[1];
+
+	        var date = setISOWeek(new Date(), parseInt(week, 10));
+	        date = setISOYear(date, parseInt(year, 10));
+	        var prevWeek = subWeeks(date, 1);
+	        return format(prevWeek, weeklyReportingPeriodFormat);
+	      }
+	    case 'bimonthly':
+	      {
+	        var _period$split3 = period.split('-M'),
+	            _period$split4 = _slicedToArray(_period$split3, 2),
+	            _year2 = _period$split4[0],
+	            month = _period$split4[1];
+
+	        var _date = setMonth(new Date(), parseInt(month - 1, 10));
+	        _date = setYear(_date, parseInt(_year2, 10));
+	        var nextBiMonth = subMonths(_date, 2);
+	        return format(nextBiMonth, bimonthlyReportingPeriodFormat);
+	      }
+	    default:
+	      throw new Error('Unkown reporting period type: ' + periodType);
+	  }
+	};
+
+	exports.nextReportingPeriod = function nextReportingPeriod(periodType) {
+	  var period = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+
+	  period = period || exports.dateToReportingPeriod(periodType);
+	  switch (periodType) {
+	    case 'weekly':
+	      {
+	        var _period$split5 = period.split('-W'),
+	            _period$split6 = _slicedToArray(_period$split5, 2),
+	            year = _period$split6[0],
+	            week = _period$split6[1];
+
+	        var date = setISOWeek(new Date(), parseInt(week, 10));
+	        date = setISOYear(date, parseInt(year, 10));
+	        var nextWeek = addWeeks(date, 1);
+	        return format(nextWeek, weeklyReportingPeriodFormat);
+	      }
+	    case 'bimonthly':
+	      {
+	        var _period$split7 = period.split('-M'),
+	            _period$split8 = _slicedToArray(_period$split7, 2),
+	            _year3 = _period$split8[0],
+	            month = _period$split8[1];
+
+	        var _date2 = setMonth(new Date(), parseInt(month - 1, 10));
+	        _date2 = setYear(_date2, parseInt(_year3, 10));
+	        var nextBiMonth = addMonths(_date2, 2);
+	        return format(nextBiMonth, bimonthlyReportingPeriodFormat);
+	      }
+	    default:
+	      throw new Error('Unkown reporting period type: ' + periodType);
+	  }
+	};
+
+	exports.reportingPeriodToDate = function reportingPeriodToDate(reportPeriod) {
+	  var _reportPeriod$split = reportPeriod.split(/-(W|M)/),
+	      _reportPeriod$split2 = _slicedToArray(_reportPeriod$split, 3),
+	      year = _reportPeriod$split2[0],
+	      period = _reportPeriod$split2[1],
+	      time = _reportPeriod$split2[2];
+
+	  var date = void 0;
+	  switch (period) {
+	    case 'W':
+	      date = setISOWeek(new Date(), parseInt(time, 10));
+	      date = setISOYear(date, parseInt(year, 10));
+	      // Week starts on Sunday in date-fns, so friday is 5
+	      // https://date-fns.org/v1.29.0/docs/setDay
+	      date = setDay(new Date(date), 5);
+	      return format(date, snapshotDateFormat);
+	    case 'M':
+	      date = setMonth(new Date(year + '-01-01'), parseInt(time - 1, 10));
+	      return format(date, snapshotDateFormat);
+	    default:
+	      throw new Error('Unkown reporting period type for date: ' + reportPeriod);
+	  }
+	};
+	});
+
+	var dateUtils_1 = __moduleExports.reportIdToReportingPeriodProps;
+	var dateUtils_2 = __moduleExports.dateToReportingPeriod;
+	var dateUtils_3 = __moduleExports.previousReportingPeriod;
+	var dateUtils_4 = __moduleExports.nextReportingPeriod;
+	var dateUtils_5 = __moduleExports.reportingPeriodToDate;
+
+	var _slicedToArray$1 = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
+	var __moduleExports$162 = locationIdToProperties$2;
+
+	function locationIdToProperties$2(id) {
 	  if (id === 'national') {
 	    return {
 	      national: 'national',
@@ -7151,11 +7332,21 @@
 	    };
 	  }
 
-	  var _id$match = id.match(/zone:([^:]+)(:state:([^:]+)(:lga:([^:]+))?)?/),
-	      _id$match2 = _slicedToArray(_id$match, 6),
-	      zone = _id$match2[1],
-	      state = _id$match2[3],
-	      lga = _id$match2[5];
+	  var _ref = id.match(/zone:([^:]+)/) || [],
+	      _ref2 = _slicedToArray$1(_ref, 2),
+	      zone = _ref2[1];
+
+	  var _ref3 = id.match(/state:([^:]+)/) || [],
+	      _ref4 = _slicedToArray$1(_ref3, 2),
+	      state = _ref4[1];
+
+	  var _ref5 = id.match(/lga:([^:]+)/) || [],
+	      _ref6 = _slicedToArray$1(_ref5, 2),
+	      lga = _ref6[1];
+
+	  var _ref7 = id.match(/sdp:([^:]+)/) || [],
+	      _ref8 = _slicedToArray$1(_ref7, 2),
+	      sdp = _ref8[1];
 
 	  var properties = { zone: zone };
 	  properties.level = 'zone';
@@ -7170,32 +7361,44 @@
 	    properties.level = 'lga';
 	    locationId += ':lga:' + lga;
 	  }
-
+	  if (sdp) {
+	    properties.sdp = sdp;
+	    properties.level = 'sdp';
+	    locationId += ':sdp:' + sdp;
+	  }
 	  return Object.assign({}, properties, { id: locationId });
 	}
 
-	var __moduleExports$161 = stockCountIdToLocationProperties$1;
+	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
 
-	var locationIdToProperties = __moduleExports$162;
+	var __moduleExports$161 = stockCountIdToLocationProperties$2;
 
-	function stockCountIdToLocationProperties$1(id) {
-	  var parts = id.split(':');
-	  if (parts.length > 6) {
-	    return locationIdToProperties(parts.slice(0, 4).concat(parts.slice(6)).join(':'));
+	var locationIdToProperties$1 = __moduleExports$162;
+
+	function stockCountIdToLocationProperties$2(id) {
+	  if (id.startsWith('national')) {
+	    return locationIdToProperties$1('national');
 	  }
-	  return locationIdToProperties(id.split(':week:')[0]);
+	  // The id will contain a period, e.g. "week:2017-W01" somewhere and we
+	  // need to remove that. The rest will be the location properties.
+
+	  var _id$match = id.match(/^(.+)(?:(?:week|bimonth):[0-9]{4}-.[0-9]{1,2}:?)(.*)$/),
+	      _id$match2 = _slicedToArray(_id$match, 3),
+	      part1 = _id$match2[1],
+	      part2 = _id$match2[2];
+
+	  var locationId = part1 + part2;
+	  return locationIdToProperties$1(locationId);
 	}
 
-	var __moduleExports$164 = locationIdToSubmitProperties$1;
+	var __moduleExports$164 = locationIdToSubmitProperties$2;
 
-	var locationIdToProperties$2 = __moduleExports$162;
+	var locationIdToProperties$3 = __moduleExports$162;
 
 	// This can be removed when the information has somehow been included
 	// in location docs
-	// Ignoring the function in tests because it's trivial
-	/* istanbul ignore next */
-	function locationIdToSubmitProperties$1(locationId) {
-	  var location = locationIdToProperties$2(locationId);
+	function locationIdToSubmitProperties$2(locationId) {
+	  var location = locationIdToProperties$3(locationId);
 
 	  switch (location.level) {
 	    case 'zone':
@@ -7203,35 +7406,44 @@
 	      return {
 	        submitsOwnReport: true,
 	        submitsChildrenReport: false,
-	        submitsBatchedCounts: true
+	        submitsBatchedCounts: true,
+	        submitsMultiFieldCounts: false
 	      };
 	    case 'state':
 	      return {
 	        submitsOwnReport: true,
 	        submitsChildrenReport: true,
-	        submitsBatchedCounts: true
-
+	        submitsBatchedCounts: true,
+	        submitsMultiFieldCounts: false
+	      };
+	    case 'sdp':
+	      return {
+	        submitsOwnReport: false,
+	        submitsChildrenReport: false,
+	        submitsBatchedCounts: false,
+	        submitsMultiFieldCounts: true
 	      };
 	    default:
 	      return {
 	        submitsOwnReport: false,
 	        submitsChildrenReport: false,
-	        submitsBatchedCounts: false
-
+	        submitsBatchedCounts: false,
+	        submitsMultiFieldCounts: false
 	      };
 	  }
 	}
 
-	var __moduleExports$163 = shouldTrackBatches$1;
+	var __moduleExports$163 = shouldTrackBatches$2;
 
-	var locationIdToSubmitProperties = __moduleExports$164;
+	var locationIdToSubmitProperties$1 = __moduleExports$164;
 
-	function shouldTrackBatches$1(params) {
+	function shouldTrackBatches$2(params) {
 	  var location = params.location,
-	      product = params.product;
+	      _params$product = params.product,
+	      product = _params$product === undefined ? {} : _params$product;
 
 
-	  if (location && !locationIdToSubmitProperties(location.id).submitsBatchedCounts) {
+	  if (location && !locationIdToSubmitProperties$1(location.id).submitsBatchedCounts) {
 	    return false;
 	  }
 
@@ -7246,12 +7458,6 @@
 	  return true;
 	}
 
-	var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
-	function createCommonjsModule(fn, module) {
-		return module = { exports: {} }, fn(module, module.exports), module.exports;
-	}
-
 	var __moduleExports$165 = createCommonjsModule(function (module, exports) {
 	!function(e,n){"object"==typeof exports&&"undefined"!=typeof module?module.exports=n():"function"==typeof undefined&&undefined.amd?undefined(n):e.dlv=n()}(commonjsGlobal,function(){function e(e,n,t,o){for(o=0,n=n.split?n.split("."):n;e&&o<n.length;)e=e[n[o++]];return void 0===e?t:e}return e});
 	});
@@ -7262,21 +7468,25 @@
 	  COMPLETE: 'complete'
 	};
 
-	var stockCountIdToLocationProperties = __moduleExports$161;
-	var shouldTrackBatches = __moduleExports$163;
+	var stockCountIdToLocationProperties$1 = __moduleExports$161;
+	var shouldTrackBatches$1 = __moduleExports$163;
 	var dlv = __moduleExports$165;
 
 	var _require$1 = __moduleExports$166;
 	var NOT_STARTED = _require$1.NOT_STARTED;
 	var IN_PROGRESS = _require$1.IN_PROGRESS;
 	var COMPLETE = _require$1.COMPLETE;
-	var reportProgress = function reportProgress(doc, relevantProducts) {
+	var reportProgress$1 = function reportProgress(doc, relevantProducts) {
 	  // report has no `stock` or `stock: {}` => hasn't been started
 	  if (!(doc.stock && Object.keys(doc.stock).length)) {
 	    return NOT_STARTED;
 	  }
 
-	  var locationId = stockCountIdToLocationProperties(doc._id).id;
+	  if (doc.submittedAt) {
+	    return COMPLETE;
+	  }
+
+	  var locationId = stockCountIdToLocationProperties$1(doc._id).id;
 	  // is in progress when `stock` field contains a non empty object
 	  // and one of the following is true
 	  var _iteratorNormalCompletion = true;
@@ -7297,7 +7507,7 @@
 	        return IN_PROGRESS;
 	      }
 
-	      var isBatchTrackedForProduct = shouldTrackBatches({
+	      var isBatchTrackedForProduct = shouldTrackBatches$1({
 	        product: product,
 	        location: { id: locationId }
 	      });
@@ -7366,65 +7576,77 @@
 	  return COMPLETE;
 	};
 
-	var __moduleExports$160 = reportProgress;
+	var __moduleExports$160 = reportProgress$1;
 
-	var __moduleExports$167 = docToStockCountRecord;
+	var __moduleExports$167 = createCommonjsModule(function (module) {
+	'use strict';
 
-	var stockCountIdToLocationProperties$2 = __moduleExports$161;
-	var locationIdToSubmitProperties$2 = __moduleExports$164;
-	var shouldTrackBatches$2 = __moduleExports$163;
-	var reportProgress$1 = __moduleExports$160;
+	module.exports = docToStockCountRecord;
 
-	var stockCountIdToDateProps = function stockCountIdToDateProps(id) {
-	  var reportingPeriod = id.split(':week:')[1].split(':')[0];
-	  var reportingPeriodParts = reportingPeriod.split('-W');
-	  var year = parseInt(reportingPeriodParts[0]);
-	  var week = parseInt(reportingPeriodParts[1]);
-	  return {
-	    year: year,
-	    week: week,
-	    reportingPeriod: reportingPeriod
-	  };
-	};
+	var VAN_SERVICE = 'program:immunization:service:immunization';
+
+	var ONLY_MISSING_PRODUCTS = module.exports.ONLY_MISSING_PRODUCTS = 'products';
+	var ONLY_BATCHES_FOR_MISSING_PRODUCTS = module.exports.ONLY_BATCHES_FOR_MISSING_PRODUCTS = 'batches';
+	var BATCHES_OR_AMOUNTS_FOR_MISSING_PRODUCTS = module.exports.BATCHES_OR_AMOUNTS_FOR_MISSING_PRODUCTS = 'all';
+
+	var stockCountIdToLocationProperties = __moduleExports$161;
+	var locationIdToSubmitProperties = __moduleExports$164;
+	var shouldTrackBatches = __moduleExports$163;
+	var reportProgress = __moduleExports$160;
+	var dlv = __moduleExports$165;
+
+	var _require = __moduleExports,
+	    reportIdToReportingPeriodProps = _require.reportIdToReportingPeriodProps;
 
 	// if batches items do not contain a `checked` field,
 	// add `checked: false`
+
+
 	var maybeUncheckBatches = function maybeUncheckBatches(batches) {
 	  return Object.keys(batches).reduce(function (withChecked, batchId) {
-	    var _batches$batchId = batches[batchId],
-	        checked = _batches$batchId.checked,
-	        amount = _batches$batchId.amount;
-
-	    if (typeof checked === 'undefined') {
-	      withChecked[batchId] = {
-	        amount: amount,
-	        checked: false
-	      };
-	      return withChecked;
-	    }
-	    withChecked[batchId] = batches[batchId];
+	    var checked = !!batches[batchId].checked;
+	    withChecked[batchId] = Object.assign({}, batches[batchId], { checked: checked });
 	    return withChecked;
 	  }, {});
 	};
 
-	var addUpBatchQuantities = function addUpBatchQuantities(batches) {
+	var addUpBatchQuantities = function addUpBatchQuantities(batches, countAll) {
 	  return Object.keys(batches).reduce(function (total, batchId) {
-	    var _batches$batchId2 = batches[batchId],
-	        checked = _batches$batchId2.checked,
-	        amount = _batches$batchId2.amount;
-
-	    if (checked) {
+	    var checked = !!batches[batchId].checked;
+	    var amount = dlv(batches[batchId], 'fields.field:standard-physical-count.amount');
+	    if ((countAll || checked) && typeof amount === 'number') {
 	      return total + amount;
 	    }
 	    return total;
 	  }, 0);
 	};
 
-	var stockWithAmounts = function stockWithAmounts(stock) {
+	var stockWithAmounts = function stockWithAmounts(serviceId, stock) {
 	  return Object.keys(stock).reduce(function (withAmounts, productId) {
+	    var isVirtual = stock[productId].isVirtual;
+	    delete stock[productId].isVirtual;
 	    if (!stock[productId].batches) {
 	      // unbatched product
 	      withAmounts[productId] = stock[productId];
+	      // VAN requires an extra amount field for unbatched products
+	      if (serviceId === VAN_SERVICE) {
+	        var amount = dlv(stock[productId], 'fields.field:standard-physical-count.amount');
+	        if (typeof amount === 'undefined') {
+	          // Check for a special case where the stock count has no
+	          // `fields.field:standard-physical-count.amount`, but an `amount` property.
+	          // This happens when we translate version 1 stock counts which cannot have fields,
+	          // but will have an `amount` after conversion.
+	          if (typeof stock[productId].amount !== 'undefined') {
+	            amount = stock[productId].amount;
+	          } else {
+	            amount = 0;
+	          }
+	        }
+	        withAmounts[productId].amount = amount;
+	        if (isVirtual) {
+	          withAmounts[productId].virtualTotal = amount;
+	        }
+	      }
 	      return withAmounts;
 	    }
 	    var batches = stock[productId].batches;
@@ -7432,51 +7654,218 @@
 	      amount: addUpBatchQuantities(batches),
 	      batches: maybeUncheckBatches(batches)
 	    };
+	    if (isVirtual) {
+	      withAmounts[productId].virtualTotal = addUpBatchQuantities(batches, true);
+	    }
 	    return withAmounts;
 	  }, {});
 	};
 
-	var addMissingProductsToStock = function addMissingProductsToStock(doc, products) {
+	var addMissingProductsToStock = function addMissingProductsToStock(doc, service, addMissingStockLevel, products, lastReport) {
+	  var shipments = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : [];
+
 	  var stockWithMissingProducts = function stockWithMissingProducts() {
 	    var stock = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-	    var locationId = arguments[1];
-	    var products = arguments[2];
+	    var service = arguments[1];
+	    var locationId = arguments[2];
+	    var products = arguments[3];
 
 	    return products.reduce(function (withProducts, product) {
-	      var stockDefault = { batches: {} };
-	      var areBatchesTracked = shouldTrackBatches$2({
+	      var calculateStock = function calculateStock(lastReport, shipments, productId, areBatchesTracked, defaultStock) {
+	        var validLastReport = lastReport && lastReport.submittedAt && lastReport.stock && lastReport.stock[productId];
+	        var calculatedProductStock = defaultStock;
+	        if (validLastReport) {
+	          calculatedProductStock = lastReport.stock[productId];
+	        }
+
+	        var submittedAtDate = lastReport && lastReport.submittedAt && lastReport.submittedAt.split('T')[0];
+
+	        var isShipmentRelevant = function isShipmentRelevant(shipment) {
+	          if (submittedAtDate && shipment.date <= submittedAtDate) {
+	            return false;
+	          }
+	          var statusType = shipment.statusType,
+	              status = shipment.status;
+
+	          if (statusType === 'arrival' && status !== 'received') {
+	            return false;
+	          }
+	          if (statusType === 'distribution' && !(status === 'sent' || status === 'arrived' || status === 'received')) {
+	            return false;
+	          }
+	          return true;
+	        };
+
+	        var _iteratorNormalCompletion = true;
+	        var _didIteratorError = false;
+	        var _iteratorError = undefined;
+
+	        try {
+	          for (var _iterator = shipments[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+	            var shipment = _step.value;
+
+	            if (!isShipmentRelevant(shipment)) {
+	              continue;
+	            }
+
+	            var _iteratorNormalCompletion2 = true;
+	            var _didIteratorError2 = false;
+	            var _iteratorError2 = undefined;
+
+	            try {
+	              for (var _iterator2 = Object.keys(shipment.counts)[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+	                var batchId = _step2.value;
+
+	                if (!batchId.startsWith(productId + ':')) {
+	                  continue;
+	                }
+	                if (!areBatchesTracked) {
+	                  var _amount = dlv(calculatedProductStock, 'fields.field:standard-physical-count.amount', 0);
+	                  // we take the counts from the originally created snapshot, instead of the potentially modified
+	                  // shipment counts. We just need to do this for incoming shipments with `status: arrived`,
+	                  // but it's just easier to do it for all shipments and it doesn't hurt.
+	                  var _diff = dlv(shipment, 'history.' + shipment.snapshotId + '.counts.' + batchId + '.quantity', 0);
+	                  var _newAmount = shipment.statusType === 'arrival' ? _amount + _diff : _amount - _diff;
+	                  calculatedProductStock = {
+	                    fields: { 'field:standard-physical-count': { amount: _newAmount } }
+	                    // there is only one entry per snapshot for each one of the untracked products
+	                  };break;
+	                }
+	                // ...is a batch tracking product
+	                var amount = dlv(calculatedProductStock, 'batches.' + batchId + '.fields.field:standard-physical-count.amount', 0);
+	                // we take the counts from the originally created snapshot, instead of the potentially modified
+	                // shipment counts. We just need to do this for incoming shipments with `status: arrived`,
+	                // but it's just easier to do it for all shipments and it doesn't hurt.
+	                var diff = dlv(shipment, 'history.' + shipment.snapshotId + '.counts.' + batchId + '.quantity', 0);
+	                var newAmount = shipment.statusType === 'arrival' ? amount + diff : amount - diff;
+	                calculatedProductStock.batches[batchId] = {
+	                  fields: { 'field:standard-physical-count': { amount: newAmount } }
+	                };
+	              }
+	            } catch (err) {
+	              _didIteratorError2 = true;
+	              _iteratorError2 = err;
+	            } finally {
+	              try {
+	                if (!_iteratorNormalCompletion2 && _iterator2.return) {
+	                  _iterator2.return();
+	                }
+	              } finally {
+	                if (_didIteratorError2) {
+	                  throw _iteratorError2;
+	                }
+	              }
+	            }
+	          }
+	        } catch (err) {
+	          _didIteratorError = true;
+	          _iteratorError = err;
+	        } finally {
+	          try {
+	            if (!_iteratorNormalCompletion && _iterator.return) {
+	              _iterator.return();
+	            }
+	          } finally {
+	            if (_didIteratorError) {
+	              throw _iteratorError;
+	            }
+	          }
+	        }
+
+	        return calculatedProductStock;
+	      };
+
+	      var setProductStockAndReturn = function setProductStockAndReturn(productStock, isVirtual) {
+	        withProducts[product._id] = Object.assign({}, productStock, { isVirtual: isVirtual });
+	        return withProducts;
+	      };
+
+	      var productStock = stock[product._id];
+
+	      var areBatchesTracked = shouldTrackBatches({
+	        service: service,
 	        product: product,
 	        location: { id: locationId }
 	      });
-	      if (!areBatchesTracked) {
-	        stockDefault = {};
+
+	      var isMultiFieldStockCount = locationIdToSubmitProperties(locationId).submitsMultiFieldCounts;
+
+	      // if the current report already have stock for that product don't do anything
+	      var isStockAvailable = typeof dlv(productStock, 'fields.field:standard-physical-count.amount') !== 'undefined';
+	      if (areBatchesTracked) {
+	        isStockAvailable = productStock && productStock.batches && Object.keys(productStock.batches).length;
+	      }
+	      if (isMultiFieldStockCount) {
+	        isStockAvailable = productStock && productStock.fields && Object.keys(productStock.fields).length;
 	      }
 
-	      withProducts[product._id] = Object.assign({}, stockDefault, stock[product._id]);
-	      return withProducts;
+	      if (isStockAvailable) {
+	        return setProductStockAndReturn(productStock);
+	      }
+
+	      // ...current report has no stock for that product
+
+	      var defaultStock = areBatchesTracked ? { batches: {} } : {};
+
+	      // If level ONLY_MISSING_PRODUCTS: just add a default for the missing product
+	      if (addMissingStockLevel === ONLY_MISSING_PRODUCTS) {
+	        return setProductStockAndReturn(Object.assign({}, defaultStock, productStock));
+	      }
+
+	      // ...level is either 'ONLY_BATCHES_FOR_MISSING_PRODUCTS' or 'BATCHES_OR_AMOUNTS_FOR_MISSING_PRODUCTS'
+	      if (!areBatchesTracked) {
+	        if (addMissingStockLevel === ONLY_BATCHES_FOR_MISSING_PRODUCTS) {
+	          return setProductStockAndReturn(defaultStock);
+	        }
+	      }
+
+	      // ...batches are tracked and level is at least ONLY_BATCHES_FOR_MISSING_PRODUCTS
+	      var virtualStock = calculateStock(lastReport, shipments, product._id, areBatchesTracked, defaultStock);
+
+	      if (!areBatchesTracked) {
+	        if (dlv(virtualStock, 'fields.field:standard-physical-count.amount') > 0) {
+	          return setProductStockAndReturn(virtualStock, true);
+	        }
+	        return setProductStockAndReturn({ fields: { 'field:standard-physical-count': { amount: 0 } } }, true);
+	      }
+
+	      // do not return batches that have 0 or a negative value as amount
+	      Object.keys(virtualStock.batches).forEach(function (batchId) {
+	        if (dlv(virtualStock.batches[batchId], 'fields.field:standard-physical-count.amount') <= 0) {
+	          delete virtualStock.batches[batchId];
+	        }
+	      });
+
+	      return setProductStockAndReturn(virtualStock, true);
 	    }, {});
 	  };
 
-	  var locationProps = stockCountIdToLocationProperties$2(doc._id);
+	  if (!(addMissingStockLevel === ONLY_MISSING_PRODUCTS || addMissingStockLevel === ONLY_BATCHES_FOR_MISSING_PRODUCTS || addMissingStockLevel === BATCHES_OR_AMOUNTS_FOR_MISSING_PRODUCTS)) {
+	    return doc;
+	  }
+	  var locationProps = stockCountIdToLocationProperties(doc._id);
 	  var locationId = locationProps.id;
-	  doc.stock = stockWithMissingProducts(doc.stock, locationId, products);
+	  doc.stock = stockWithMissingProducts(doc.stock, service, locationId, products);
 	  return doc;
 	};
 
-	function docToStockCountRecord(doc) {
-	  var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-	  var decorate = opts.decorate,
-	      products = opts.products;
+	function docToStockCountRecord(doc, service) {
+	  var opts = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
-	  if (decorate && products) {
+	  var products = opts.products;
+	  if (opts.addProgress && products) {
 	    doc.progress = {
-	      status: reportProgress$1(doc, products)
+	      status: reportProgress(doc, products)
 	    };
+	  }
 
-	    addMissingProductsToStock(doc, products);
+	  if (opts.addMissingStock && products) {
+	    addMissingProductsToStock(doc, service, opts.addMissingStock, products, opts.lastReport, opts.shipments);
 	  }
 
 	  var _id = doc._id,
+	      version = doc.version,
+	      serviceId = doc.serviceId,
 	      stock = doc.stock,
 	      createdAt = doc.createdAt,
 	      updatedAt = doc.updatedAt,
@@ -7485,11 +7874,15 @@
 	      submittedAt = doc.submittedAt,
 	      progress = doc.progress;
 
+
 	  var stockCount = Object.assign({}, {
 	    _id: _id,
-	    location: stockCountIdToLocationProperties$2(_id),
-	    date: stockCountIdToDateProps(_id)
+	    location: stockCountIdToLocationProperties(_id),
+	    date: reportIdToReportingPeriodProps(service.program.reportingPeriod, _id)
 	  });
+	  if (version) {
+	    stockCount.version = version;
+	  }
 	  if (createdAt) {
 	    stockCount.createdAt = createdAt;
 	    stockCount.createdBy = createdBy;
@@ -7500,21 +7893,107 @@
 	    stockCount.submittedAt = submittedAt;
 	  }
 	  if (stock) {
-	    stockCount.stock = stockWithAmounts(stock);
+	    stockCount.stock = stockWithAmounts(service.id, stock);
 	  }
 	  if (typeof progress !== 'undefined') {
 	    stockCount.progress = progress;
 	  }
-	  stockCount.submitConfig = locationIdToSubmitProperties$2(stockCount.location.id);
+	  if (opts.addSubmitConfig) {
+	    stockCount.submitConfig = locationIdToSubmitProperties(stockCount.location.id);
+	  }
+	  stockCount.serviceId = serviceId || service.id;
 	  return stockCount;
 	}
+	});
 
-	var __moduleExports$169 = locationIdToParent$1;
+	var docToStockCountRecord_2 = __moduleExports$167.ONLY_MISSING_PRODUCTS;
+	var docToStockCountRecord_3 = __moduleExports$167.ONLY_BATCHES_FOR_MISSING_PRODUCTS;
+	var docToStockCountRecord_4 = __moduleExports$167.BATCHES_OR_AMOUNTS_FOR_MISSING_PRODUCTS;
 
-	var locationIdToProperties$3 = __moduleExports$162;
+	var __moduleExports$169 = toStockCountId$2;
+
+	var locationIdToProperties$4 = __moduleExports$162;
+
+	function toStockCountId$2(params) {
+	  var location = params.location,
+	      service = params.service,
+	      reportingPeriod = params.reportingPeriod;
+
+	  /* istanbul ignore if */
+
+	  if (!location) {
+	    throw new Error('location parameter is required');
+	  }
+	  if (!service) {
+	    throw new Error('service parameter is required');
+	  }
+	  if (!reportingPeriod) {
+	    throw new Error('reportingPeriod parameter is required');
+	  }
+
+	  var locationProps = locationIdToProperties$4(location);
+
+	  var periodPrefix = void 0;
+	  switch (service.program.reportingPeriod) {
+	    case 'weekly':
+	      periodPrefix = 'week';
+	      break;
+	    case 'bimonthly':
+	      periodPrefix = 'bimonth';
+	      break;
+	    default:
+	      throw new Error('Unsupported reporting period type: ', service.program.reportingPeriod);
+	  }
+	  if (service.id === 'program:immunization:service:immunization') {
+	    // Immunization has a special id format
+	    if (locationProps.level === 'lga') {
+	      return 'zone:' + locationProps.zone + ':state:' + locationProps.state + ':week:' + reportingPeriod + ':lga:' + locationProps.lga;
+	    }
+	    return location + ':' + periodPrefix + ':' + reportingPeriod;
+	  }
+	  return location + ':' + periodPrefix + ':' + reportingPeriod + ':' + service.id;
+	}
+
+	var __moduleExports$168 = generateReportIds$1;
+
+	var toStockCountId$1 = __moduleExports$169;
+
+	var _require$2 = __moduleExports;
+	var dateToReportingPeriod$1 = _require$2.dateToReportingPeriod;
+	var previousReportingPeriod$1 = _require$2.previousReportingPeriod;
+	var DEFAULT_SINCE = '2018-01-01T00:00:00.000Z';
+
+	function generateReportIds$1(location, service) {
+	  var _ref = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {},
+	      _ref$since = _ref.since,
+	      since = _ref$since === undefined ? DEFAULT_SINCE : _ref$since,
+	      till = _ref.till;
+
+	  var periodType = service.program.reportingPeriod;
+	  var sinceReportingPeriod = dateToReportingPeriod$1(periodType, since);
+	  var tillReportingPeriod = dateToReportingPeriod$1(periodType, till);
+
+	  var prevReportingPeriod = tillReportingPeriod;
+	  var ids = [];
+
+	  while (prevReportingPeriod >= sinceReportingPeriod) {
+	    ids.push(toStockCountId$1({
+	      location: location,
+	      reportingPeriod: prevReportingPeriod,
+	      service: service
+	    }));
+	    prevReportingPeriod = previousReportingPeriod$1(periodType, prevReportingPeriod);
+	  }
+
+	  return ids;
+	}
+
+	var __moduleExports$170 = locationIdToParent$1;
+
+	var locationIdToProperties$5 = __moduleExports$162;
 
 	function locationIdToParent$1(locationId) {
-	  var location = locationIdToProperties$3(locationId);
+	  var location = locationIdToProperties$5(locationId);
 	  switch (location.level) {
 	    case 'lga':
 	      return 'zone:' + location.zone + ':state:' + location.state;
@@ -7522,76 +8001,112 @@
 	      return 'zone:' + location.zone;
 	    case 'zone':
 	      return 'national';
+	    case 'national':
+	      return 'country';
 	  }
 	}
 
-	var __moduleExports$168 = formatReportsByLevel;
+	var __moduleExports$171 = pickLastSubmittedReport$1;
 
-	var locationIdToParent = __moduleExports$169;
+	var stockCountIdToLocationProperties$3 = __moduleExports$161;
+	var shouldTrackBatches$3 = __moduleExports$163;
 
-	var levels = ['national', 'zone', 'state', 'lga'];
-
-	var level = function level(report, currentLocationLevel) {
-	  var descendantLevel = report.location.level;
-	  var distance = levels.indexOf(descendantLevel) - levels.indexOf(currentLocationLevel);
-	  return distance === 1 ? 'children' : 'grandchildren';
+	var byReportingPeriodDesc = function byReportingPeriodDesc(a, b) {
+	  if (a._id < b._id) {
+	    return 1;
+	  }
+	  /* istanbul ignore else */
+	  if (a._id > b._id) {
+	    return -1;
+	  }
+	  // next line not relevant for istanbul since we'll never get the same report twice
+	  /* istanbul ignore next */
+	  return 0;
 	};
 
-	function formatReportsByLevel(reports) {
-	  var currentLocationReport = reports.shift();
-	  var currentLocationLevel = currentLocationReport.location.level;
+	function pickLastSubmittedReport$1(reports) {
+	  reports.sort(byReportingPeriodDesc);
 
-	  var byLevel = {
-	    date: currentLocationReport.date,
-	    location: currentLocationReport.location,
-	    current: currentLocationReport
-	  };
+	  var _iteratorNormalCompletion = true;
+	  var _didIteratorError = false;
+	  var _iteratorError = undefined;
 
-	  return reports.reduce(function (byLevel, report) {
-	    var descendantLevel = level(report, currentLocationLevel);
-	    if (descendantLevel === 'children') {
-	      byLevel.children = byLevel.children || [];
-	      byLevel.children.push(report);
-	      return byLevel;
+	  try {
+	    for (var _iterator = reports[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+	      var report = _step.value;
+
+	      // Not submitted (draft) reports are ignored
+	      if (!report.submittedAt) {
+	        continue;
+	      }
+
+	      // Reports without stock are also ignored because they're not useful to know what's the initial stock
+	      var hasStock = report.stock && Object.keys(report.stock).length;
+	      if (!hasStock) {
+	        continue;
+	      }
+
+	      var location = stockCountIdToLocationProperties$3(report._id);
+	      var isLocationTrackingBatches = shouldTrackBatches$3({ location: location });
+
+	      // For locations that don't track batches we just need to last submitted report
+	      if (!isLocationTrackingBatches) {
+	        return report;
+	      }
+
+	      // For locations that track batches we search for the last submitted batched reports
+	      // If we find a non batched report we can return undefined, since no batched report
+	      // comes before an unbatched one
+	      var _iteratorNormalCompletion2 = true;
+	      var _didIteratorError2 = false;
+	      var _iteratorError2 = undefined;
+
+	      try {
+	        for (var _iterator2 = Object.keys(report.stock)[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+	          var productId = _step2.value;
+
+	          // We don't have product definitions so we can't know which products should track batches
+	          // as a rough way of checking if this is a batch stock count we just require that _any_
+	          // product has batches
+	          var productStock = report.stock[productId];
+	          if (productStock.batches) {
+	            return report;
+	          }
+	        }
+	      } catch (err) {
+	        _didIteratorError2 = true;
+	        _iteratorError2 = err;
+	      } finally {
+	        try {
+	          if (!_iteratorNormalCompletion2 && _iterator2.return) {
+	            _iterator2.return();
+	          }
+	        } finally {
+	          if (_didIteratorError2) {
+	            throw _iteratorError2;
+	          }
+	        }
+	      }
+
+	      return;
 	    }
-	    /* istanbul ignore else */
-	    if (descendantLevel === 'grandchildren') {
-	      byLevel.grandchildren = byLevel.grandchildren || { byChild: {} };
-	      var parentId = locationIdToParent(report.location.id);
-	      byLevel.grandchildren.byChild[parentId] = byLevel.grandchildren.byChild[parentId] || [];
-	      byLevel.grandchildren.byChild[parentId].push(report);
+	  } catch (err) {
+	    _didIteratorError = true;
+	    _iteratorError = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion && _iterator.return) {
+	        _iterator.return();
+	      }
+	    } finally {
+	      if (_didIteratorError) {
+	        throw _iteratorError;
+	      }
 	    }
-	    return byLevel;
-	  }, byLevel);
+	  }
 	}
 
-	var __moduleExports$170 = toStockCountId;
-
-	var dateToReportingPeriod$1 = __moduleExports;
-	var locationIdToProperties$4 = __moduleExports$162;
-
-	function toStockCountId(params) {
-	  var location = params.location,
-	      reportingPeriod = params.reportingPeriod,
-	      reportingDate = params.reportingDate;
-
-	  /* istanbul ignore if */
-
-	  if (!location) {
-	    return;
-	  }
-
-	  var week = reportingPeriod || dateToReportingPeriod$1(reportingDate);
-
-	  var locationProps = locationIdToProperties$4(location);
-
-	  if (!locationProps.lga) {
-	    return location + ':week:' + week;
-	  }
-	  return 'zone:' + locationProps.zone + ':state:' + locationProps.state + ':week:' + week + ':lga:' + locationProps.lga;
-	}
-
-	var __moduleExports$171 = translateReport;
+	var __moduleExports$172 = translateReport$1;
 
 	var docToStockCountRecord$1 = __moduleExports$167;
 	var dlv$1 = __moduleExports$165;
@@ -7610,10 +8125,15 @@
 	  }, {});
 	};
 
-	function translateReport(report, version) {
+	function translateReport$1(report, version) {
+	  var service = {
+	    id: 'program:immunization:service:immunization',
+	    program: { reportingPeriod: 'weekly' }
+	  };
+
 	  var reportVersion = dlv$1(report, 'version', '1.0.0');
 	  if (reportVersion === '2.0.0' && version === '1.0.0') {
-	    var stockCount = docToStockCountRecord$1(report);
+	    var stockCount = docToStockCountRecord$1(report, service);
 
 	    var storeType = stockCount.location.level;
 	    delete stockCount.location.level;
@@ -7634,6 +8154,7 @@
 	    var oldVersion = {
 	      _id: _id,
 	      type: report.type,
+	      version: version,
 	      createdAt: createdAt,
 	      createdBy: createdBy,
 	      updatedAt: updatedAt,
@@ -7673,6 +8194,7 @@
 	      createdBy: _createdBy,
 	      updatedAt: _updatedAt,
 	      updatedBy: _updatedBy,
+	      serviceId: service.id,
 	      stock: toNewFormatUnbatchedStock(_stock)
 	    };
 
@@ -7685,54 +8207,41 @@
 	  return report;
 	}
 
-	var _dateToReportingPeriod = __moduleExports;
-	var _reportProgress = __moduleExports$160;
-	var _docToStockCountRecord = __moduleExports$167;
-	var _formatReportsByLevel = __moduleExports$168;
-	var _locationIdToParent = __moduleExports$169;
-	var _locationIdToProperties = __moduleExports$162;
-	var _locationIdToSubmitProperties = __moduleExports$164;
-	var _shouldTrackBatches = __moduleExports$163;
-	var _stockCountIdToLocationProperties = __moduleExports$161;
-	var _toStockCountId = __moduleExports$170;
-	var _translateReport = __moduleExports$171;
+	var _require = __moduleExports;
+	var dateToReportingPeriod = _require.dateToReportingPeriod;
+	var previousReportingPeriod = _require.previousReportingPeriod;
+	var nextReportingPeriod = _require.nextReportingPeriod;
+	var reportingPeriodToDate = _require.reportingPeriodToDate;
+	var reportProgress = __moduleExports$160;
+	var docToStockCountRecord = __moduleExports$167;
+	var generateReportIds = __moduleExports$168;
+	var locationIdToParent = __moduleExports$170;
+	var locationIdToProperties = __moduleExports$162;
+	var locationIdToSubmitProperties = __moduleExports$164;
+	var pickLastSubmittedReport = __moduleExports$171;
+	var shouldTrackBatches = __moduleExports$163;
+	var stockCountIdToLocationProperties = __moduleExports$161;
+	var toStockCountId = __moduleExports$169;
+	var translateReport = __moduleExports$172;
 
 	// not all functions are called through index.js in tests so istanbul complains
 	/* istanbul ignore next */
 	var index = {
-	  dateToReportingPeriod: function dateToReportingPeriod(params) {
-	    return _dateToReportingPeriod(params);
-	  },
-	  reportProgress: function reportProgress(doc, relevantProducts) {
-	    return _reportProgress(doc, relevantProducts);
-	  },
-	  docToStockCountRecord: function docToStockCountRecord(params, opts) {
-	    return _docToStockCountRecord(params, opts);
-	  },
-	  formatReportsByLevel: function formatReportsByLevel(params) {
-	    return _formatReportsByLevel(params);
-	  },
-	  locationIdToParent: function locationIdToParent(params) {
-	    return _locationIdToParent(params);
-	  },
-	  locationIdToProperties: function locationIdToProperties(params) {
-	    return _locationIdToProperties(params);
-	  },
-	  locationIdToSubmitProperties: function locationIdToSubmitProperties(params) {
-	    return _locationIdToSubmitProperties(params);
-	  },
-	  shouldTrackBatches: function shouldTrackBatches(params) {
-	    return _shouldTrackBatches(params);
-	  },
-	  stockCountIdToLocationProperties: function stockCountIdToLocationProperties(params) {
-	    return _stockCountIdToLocationProperties(params);
-	  },
-	  toStockCountId: function toStockCountId(params) {
-	    return _toStockCountId(params);
-	  },
-	  translateReport: function translateReport(report, version) {
-	    return _translateReport(report, version);
-	  }
+	  dateToReportingPeriod: dateToReportingPeriod,
+	  previousReportingPeriod: previousReportingPeriod,
+	  nextReportingPeriod: nextReportingPeriod,
+	  reportProgress: reportProgress,
+	  docToStockCountRecord: docToStockCountRecord,
+	  generateReportIds: generateReportIds,
+	  locationIdToParent: locationIdToParent,
+	  locationIdToProperties: locationIdToProperties,
+	  locationIdToSubmitProperties: locationIdToSubmitProperties,
+	  pickLastSubmittedReport: pickLastSubmittedReport,
+	  shouldTrackBatches: shouldTrackBatches,
+	  stockCountIdToLocationProperties: stockCountIdToLocationProperties,
+	  toStockCountId: toStockCountId,
+	  translateReport: translateReport,
+	  reportingPeriodToDate: reportingPeriodToDate
 	};
 
 	var TranslatorService = function () {
