@@ -1,4 +1,4 @@
-import VANApiTools from '@fielded/van-stock-count-api-tools'
+import VANApiTools from '@fielded/van-stock-count-api/build/lib/tools'
 
 class TranslatorService {
   translate (data, version) {

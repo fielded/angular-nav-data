@@ -1,6 +1,6 @@
 {
   "name": "angular-nav-data",
-  "version": "6.0.1",
+  "version": "7.0.0",
   "description": "",
   "main": "dist/bundle.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "license": "Apache 2.0",
   "dependencies": {
     "angular": "^1.5.5",
-    "@fielded/van-stock-count-api-tools": "4.0.2"
+    "@fielded/van-stock-count-api": "9.0.0"
   },
   "devDependencies": {
     "add-cors-to-couchdb": "0.0.6",
