@@ -1,5 +1,7 @@
 # angular-nav-data
 
+**Deprecated**: This repository has been deprecated together with https://github.com/fielded/nav-integrated-state-dashboard.
+
 [![Build Status](https://travis-ci.org/fielded/angular-nav-data.svg)](https://travis-ci.org/fielded/angular-nav-data) ![Dependecy Status](https://david-dm.org/fielded/angular-nav-data.svg) ![Dev Dependecy Status](https://david-dm.org/fielded/angular-nav-data/dev-status.svg)
 
 ### Config
